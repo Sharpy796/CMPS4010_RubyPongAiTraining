@@ -2,10 +2,11 @@ require 'ruby2d'
 
 # Window setup
 set title: "Pong"
-set background: 'black'
+set background: '#000000'
 set width: 640
 set height: 480
-$game_color = '#00FF00'
+$game_color_1 = '#ff00ff'
+$game_color_2 = '#00ffff'
 
 class Paddle
   HEIGHT = 100
@@ -35,7 +36,7 @@ class Paddle
   end
 
   def draw
-    Rectangle.new(x: @x, y: @y, width: WIDTH, height: HEIGHT, color: $game_color)
+    Rectangle.new(x: @x, y: @y, width: WIDTH, height: HEIGHT, color: $game_color_1)
   end
 
   private
@@ -72,7 +73,7 @@ class Ball
   end
 
   def draw
-    Square.new(x: @x, y: @y, size: SIZE, color: $game_color)
+    Square.new(x: @x, y: @y, size: SIZE, color: $game_color_2)
   end
 
   def collides_with?(paddle)
@@ -83,6 +84,7 @@ class Ball
   end
 
   def bounce_x(paddle)
+    # Set speed to a faster speed after the first hit
     @x_speed = -8*(@x_speed<=>0)
     # Change y speed based on distance from center of paddle
     diff = @y - paddle.y + Ball::SIZE/2
@@ -104,6 +106,9 @@ scored = false
 framesAfterScored = 0
 countdown_speed = 30
 
+# Keybind flags
+shifting = false
+
 # Game loop (60 FPS)
 update do
   clear
@@ -120,11 +125,11 @@ update do
       framesAfterScored = 0
       scored = false
     elsif framesAfterScored >= countdown_speed*2
-      Text.new('1', x: Window.width/2-15, y: Window.height/2-30, size: 60, color: $game_color)
+      Text.new('1', x: Window.width/2-15, y: Window.height/2-30, size: 60, color: $game_color_2)
     elsif framesAfterScored >= countdown_speed
-      Text.new('2', x: Window.width/2-15, y: Window.height/2-30, size: 60, color: $game_color)
+      Text.new('2', x: Window.width/2-15, y: Window.height/2-30, size: 60, color: $game_color_2)
     else
-      Text.new('3', x: Window.width/2-15, y: Window.height/2-30, size: 60, color: $game_color)
+      Text.new('3', x: Window.width/2-15, y: Window.height/2-30, size: 60, color: $game_color_2)
     end
   else
     # Move ball
@@ -148,12 +153,12 @@ update do
   end
 
   # Draw entities
+  ball.draw
   p1.draw
   p2.draw
-  ball.draw
 
   # Display score
-  Text.new("#{p1_score}   #{p2_score}", x: Window.width / 2 - 30, y: 20, size: 30, color: $game_color)
+  Text.new("#{p1_score}   #{p2_score}", x: Window.width / 2 - 30, y: 20, size: 30, color: $game_color_2)
 end
 
 # Key down handlers
@@ -180,6 +185,19 @@ on :key_up do |event|
     p1.direction = nil
   when 'up', 'down'
     p2.direction = nil
+  when 'left shift', 'right shift'
+    shifting = false
+  end
+end
+
+on :key_down do |event|
+  case event.key
+  when 'left shift', 'right shift'
+    shifting = true
+  when 'c'
+    if shifting
+      close
+    end
   end
 end
 
