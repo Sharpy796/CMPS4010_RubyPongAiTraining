@@ -81,8 +81,11 @@ class Ball
     @y += @y_speed
 
     # Bounce off top and bottom walls
-    if @y <= 0 || @y + SIZE >= Window.height
-      @y_speed = -@y_speed
+    if @y <= 0
+      @y_speed = (@y_speed).abs
+      beep_wall
+    elsif @y + SIZE >= Window.height
+      @y_speed = -(@y_speed).abs
       beep_wall
     end
   end
