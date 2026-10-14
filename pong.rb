@@ -48,6 +48,8 @@ end
 
 class Ball
   SIZE = 15
+  BEEP_PADDLE = Sound.new('audio/retro-pong-hit-sfx.wav')
+  BEEP_WALL = Sound.new('audio/retro-buzzer-hit-sfx.wav')
   attr_reader :x, :y, :x_speed, :y_speed
 
   def initialize
@@ -62,6 +64,18 @@ class Ball
     @y_speed = 3 if @y_speed.zero?
   end
 
+  def beep_wall
+    if !$muted
+      Ball::BEEP_WALL.play
+    end
+  end
+
+  def beep_paddle
+    if !$muted
+      Ball::BEEP_PADDLE.play
+    end
+  end
+
   def move
     @x += @x_speed
     @y += @y_speed
@@ -69,6 +83,7 @@ class Ball
     # Bounce off top and bottom walls
     if @y <= 0 || @y + SIZE >= Window.height
       @y_speed = -@y_speed
+      beep_wall
     end
   end
 
@@ -84,6 +99,7 @@ class Ball
   end
 
   def bounce_x(paddle)
+    beep_paddle
     # Set speed to a faster speed after the first hit
     @x_speed = -8*(@x_speed<=>0)
     # Change y speed based on distance from center of paddle
@@ -106,8 +122,12 @@ scored = false
 framesAfterScored = 0
 countdown_speed = 30
 
+# Audio
+$muted = false
+
 # Keybind flags
 shifting = false
+ming = false
 
 # Game loop (60 FPS)
 update do
@@ -145,9 +165,11 @@ update do
     # Scoring check
     if ball.x <= 0
       p2_score += 1
+      ball.beep_wall
       scored = true
     elsif ball.x >= Window.width-Ball::SIZE
       p1_score += 1
+      ball.beep_wall
       scored = true
     end
   end
@@ -175,6 +197,24 @@ on :key_down do |event|
     p2.direction = :up
   when 'down'
     p2.direction = :down
+
+  # Other keybinds
+  when 'left shift', 'right shift'
+    shifting = true
+  when 'c'
+    if shifting
+      close
+    end
+  when 'm'
+    if !ming
+      $muted = !$muted
+      if $muted
+        puts 'Muted!'
+      else
+        puts 'Unmuted!'
+      end
+    end
+    ming = true
   end
 end
 
@@ -187,17 +227,8 @@ on :key_up do |event|
     p2.direction = nil
   when 'left shift', 'right shift'
     shifting = false
-  end
-end
-
-on :key_down do |event|
-  case event.key
-  when 'left shift', 'right shift'
-    shifting = true
-  when 'c'
-    if shifting
-      close
-    end
+  when 'm'
+    ming = false
   end
 end
 
