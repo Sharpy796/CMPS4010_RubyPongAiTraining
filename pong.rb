@@ -123,7 +123,7 @@ framesAfterScored = 0
 countdown_speed = 30
 
 # Audio
-$muted = false
+$muted = true
 
 # Keybind flags
 shifting = false
