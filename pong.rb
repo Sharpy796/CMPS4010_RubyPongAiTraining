@@ -16,10 +16,11 @@ class Paddle
   HEIGHT = 100
   WIDTH = 20
 
-  attr_reader :x, :y
-  attr_writer :direction
+  attr_reader :x, :y, :side
+  attr_writer :direction, :y
 
   def initialize(side)
+    @side = side
     @direction = nil
     @y = 165
     @movement_speed = 8
@@ -108,7 +109,11 @@ class Ball
   def bounce_x(paddle)
     beep_paddle
     # Set speed to a faster speed after the first hit
-    @x_speed = -8*(@x_speed<=>0)
+    if paddle.side == :left
+      @x_speed = 8
+    else
+      @x_speed = -8
+    end
     # Change y speed based on distance from center of paddle
     diff = @y - paddle.y + SIZE/2
     @y_speed = (diff-(Paddle::HEIGHT/2)).to_f/(Paddle::HEIGHT).to_f*2*6
@@ -147,7 +152,8 @@ update do
     ball_y: ball.y,
     ball_x_speed: ball.x_speed,
     ball_y_speed: ball.y_speed,
-    paddle_y: p2.y
+    paddle_y: p2.y,
+    paused: scored
   })
 
   # Read decision from Python Server and steer p2
@@ -161,7 +167,8 @@ update do
   # ------------------------------
 
   # Move paddles
-  p1.move
+  # p1.move
+  p1.y = ball.y-Paddle::HEIGHT+Ball::SIZE+rand(-25..25) # to randomize ball yspeed when bouncing
   p2.move
 
   if scored
@@ -193,11 +200,13 @@ update do
     if ball.x <= 0
       p2_score += 1
       ball.beep_wall
-      scored = true
+      # scored = true
+      ball.reset
     elsif ball.x >= Window.width-Ball::SIZE
       p1_score += 1
       ball.beep_wall
-      scored = true
+      # scored = true
+      ball.reset
     end
   end
 

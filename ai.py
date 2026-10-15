@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 from collections import deque
 import os
+import random
 # ---------------------------------------------------------
 # 1. Configuration & Hyperparameters
 # ---------------------------------------------------------
@@ -17,9 +18,9 @@ GAMMA = 0.99            # Discount factor for future rewards
 LR = 0.001              # Learning rate
 MEMORY_SIZE = 10000     # Replay buffer capacity
 BATCH_SIZE = 32         # Batch size for training
-EPSILON_START = 0.5     # Starting randomness (100% random moves initially)
+EPSILON_START = 1       # Starting randomness (100% random moves initially)
 EPSILON_END = 0.05      # Minimum randomness (5% random moves when trained)
-EPSILON_DECAY = 0.9995  # Decay rate per frame
+EPSILON_DECAY = 0.9 #0.9995  # Decay rate per frame
 
 # Select difficulty: 'easy', 'medium', or 'hard'
 DIFFICULTY = 'hard'
@@ -30,8 +31,8 @@ DIFFICULTY = 'hard'
 class PongDQN(nn.Module):
     def __init__(self):
         super(PongDQN, self).__init__()
-        # Input state vector size = 5: [ball_x, ball_y, ball_x_speed, ball_y_speed, paddle_y]
-        self.fc1 = nn.Linear(5, 64)
+        # Input state vector size = 5: [ball_x, ball_y, ball_x_speed, ball_y_speed, paddle_y, paused]
+        self.fc1 = nn.Linear(6, 64)
         self.fc2 = nn.Linear(64, 64)
         self.fc3 = nn.Linear(64, 3) # Output Q-values for 3 actions: [0: 'none', 1: 'up', 2: 'down']
 
@@ -137,7 +138,8 @@ def extract_state_vector(data):
         float(data['ball_y']),
         float(data['ball_x_speed']),
         float(data['ball_y_speed']),
-        float(data['paddle_y'])
+        float(data['paddle_y']),
+        bool(data['paused']) # unused if countdown is unused
     ]
 
 # ---------------------------------------------------------
@@ -153,18 +155,60 @@ while True:
         current_state_tensor = torch.tensor(current_state, dtype=torch.float32)
 
         # Reward Calculation Strategy
-        reward = 0.1  # Small positive reward for surviving frame
+        reward = 0
         done = False
 
-        # If ball is moving away from AI (left side), reward is neutral
-        # AI scored a point (Ball passed p1)
-        if data['ball_x'] <= 0:
-            reward = 10.0
-            done = True
-        # AI missed ball (Ball passed p2)
-        elif data['ball_x'] >= 625:  # Window width - ball size
-            reward = -10.0
-            done = True
+        # rewards for:
+        # - moving toward the ball
+        # - bouncing the ball (!!!!)
+
+        # penalties for:
+        # - moving away from the ball
+        # - letting the ball get away
+
+        # neutral for:
+        # - if the countdown is running ('paused')
+        #   - ('paused' isn't being used bc training is faster without a countdown lol)
+
+
+        if (not data['paused']):
+            if data['ball_x'] >= 580: # past paddle, game lost
+                reward = -1000
+            else:
+                if (data['ball_y'] < data['paddle_y']): # above paddle
+                    if (last_action == 1): # moving up
+                        reward += 25
+                    else:
+                        reward -= 50
+                elif (data['ball_y']-15 > data['paddle_y']+100): # below paddle
+                    if (last_action == 2): # moving down
+                        reward += 25
+                    else:
+                        reward -= 50
+                else: # in front of paddle
+                    reward += 50
+        else:
+            # print(f"hey the ball is being still{random.randint(0, 9)}")
+            pass # no points for losing
+
+        # successful bounce!
+        if (data['ball_x'] < 580 + 50 and
+            data['ball_x'] + 15 > 580 and
+            data['ball_y'] < data['paddle_y'] + 100 and
+            data['ball_y'] + 15 > data['paddle_y']):
+            reward += 1000
+            print(f"BOUNCED!!{random.randint(0, 9)}")
+
+        print(f"Reward:\t{reward}")
+        # ball_reward = (-abs(data['ball_y']-data['paddle_y']-50)+50)/2
+        # if (ball_reward > 0):
+        #     reward += ball_reward
+        #     if (last_action == 0): # stop being so jittery
+        #         reward += ball_reward
+
+            # done = True
+            
+            # print(f"Reward: {(-abs(data['ball_y']-data['paddle_y']-50)+50)}")
 
         # Store previous experience and train step if previous frame exists
         if last_state is not None:
@@ -185,8 +229,9 @@ while True:
     except KeyboardInterrupt:
         print("\nStopping PyTorch AI Server...")
         # Save the neural network weights to a file
-        torch.save(agent.model.state_dict(), "pong_ai.pth")
-        print("Model weights successfully saved to 'pong_ai.pth'.")
+        # TODO: If you'd like to save this, you can uncomment these two lines
+        # torch.save(agent.model.state_dict(), "pong_ai.pth") 
+        # print("Model weights successfully saved to 'pong_ai.pth'.")
         break
     except Exception as e:
         print(f"Error: {e}")
