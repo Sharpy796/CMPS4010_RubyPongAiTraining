@@ -1,4 +1,8 @@
 require 'ruby2d'
+require_relative 'socket_client' # Loads your socket client helper
+
+# Initialize AI Socket Client
+ai_client = AIClient.new
 
 # Window setup
 set title: "Pong"
@@ -136,6 +140,26 @@ ming = false
 update do
   clear
 
+  # --- AI Communication Block ---
+  # Send state to Python PyTorch Server
+  ai_client.send_state({
+    ball_x: ball.x,
+    ball_y: ball.y,
+    ball_x_speed: ball.x_speed,
+    ball_y_speed: ball.y_speed,
+    paddle_y: p2.y
+  })
+
+  # Read decision from Python Server and steer p2
+  if (action = ai_client.receive_action)
+    case action
+    when 'up'   then p2.direction = :up
+    when 'down' then p2.direction = :down
+    else             p2.direction = nil
+    end
+  end
+  # ------------------------------
+
   # Move paddles
   p1.move
   p2.move
@@ -195,7 +219,7 @@ on :key_down do |event|
   when 's'
     p1.direction = :down
 
-  # AI / Player 2 (Right) Controls
+  # AI / Player 2 (Right) Controls (Manual Override)
   when 'up'
     p2.direction = :up
   when 'down'
