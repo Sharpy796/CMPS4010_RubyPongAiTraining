@@ -66,13 +66,13 @@ class Ball
 
   def beep_wall
     if !$muted
-      Ball::BEEP_WALL.play
+      BEEP_WALL.play
     end
   end
 
   def beep_paddle
     if !$muted
-      Ball::BEEP_PADDLE.play
+      BEEP_PADDLE.play
     end
   end
 
@@ -106,7 +106,7 @@ class Ball
     # Set speed to a faster speed after the first hit
     @x_speed = -8*(@x_speed<=>0)
     # Change y speed based on distance from center of paddle
-    diff = @y - paddle.y + Ball::SIZE/2
+    diff = @y - paddle.y + SIZE/2
     @y_speed = (diff-(Paddle::HEIGHT/2)).to_f/(Paddle::HEIGHT).to_f*2*6
   end
 end
