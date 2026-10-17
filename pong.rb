@@ -11,6 +11,7 @@ set width: 640
 set height: 480
 $game_color_1 = '#ff00ff'
 $game_color_2 = '#00ffff'
+$p1_cpu = true
 
 class Paddle
   HEIGHT = 100
@@ -168,7 +169,19 @@ update do
 
   # Move paddles
   # p1.move
-  p1.y = ball.y-Paddle::HEIGHT+Ball::SIZE+rand(-25..25) # to randomize ball yspeed when bouncing
+  if $p1_cpu
+    center = p1.y + Paddle::HEIGHT / 2
+
+    if ball.y < center - 10
+      p1.direction = :up
+    elsif ball.y > center + 10
+      p1.direction = :down
+    else
+      p1.direction = nil
+    end
+  end
+
+  p1.move
   p2.move
 
   if scored
@@ -235,6 +248,9 @@ on :key_down do |event|
     p2.direction = :down
 
   # Other keybinds
+  when 'p'
+    $p1_cpu = !$p1_cpu
+    p1.direction = nil
   when 'left shift', 'right shift'
     shifting = true
   when 'c'
