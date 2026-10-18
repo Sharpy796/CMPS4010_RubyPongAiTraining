@@ -20,7 +20,7 @@ MEMORY_SIZE = 10000     # Replay buffer capacity
 BATCH_SIZE = 32         # Batch size for training
 EPSILON_START = 1       # Starting randomness (100% random moves initially)
 EPSILON_END = 0.05      # Minimum randomness (5% random moves when trained)
-EPSILON_DECAY = 0.9 #0.9995  # Decay rate per frame
+EPSILON_DECAY = 0.9995 #0.9995  # Decay rate per frame
 
 # Select difficulty: 'easy', 'medium', or 'hard'
 DIFFICULTY = 'hard'
@@ -172,21 +172,23 @@ while True:
 
 
         if (not data['paused']):
-            if data['ball_x'] >= 580: # past paddle, game lost
+            if data['ball_x'] >= 610: # past paddle, game lost
                 reward = -1000
+                print("HEY YOU LOST")
+                done = True
             else:
                 if (data['ball_y'] < data['paddle_y']): # above paddle
                     if (last_action == 1): # moving up
-                        reward += 25
+                        reward += 1
                     else:
-                        reward -= 50
+                        reward -= 2
                 elif (data['ball_y']-15 > data['paddle_y']+100): # below paddle
                     if (last_action == 2): # moving down
-                        reward += 25
+                        reward += 1
                     else:
-                        reward -= 50
+                        reward -= 2
                 else: # in front of paddle
-                    reward += 50
+                    reward += 2
         else:
             # print(f"hey the ball is being still{random.randint(0, 9)}")
             pass # no points for losing
@@ -196,7 +198,7 @@ while True:
             data['ball_x'] + 15 > 580 and
             data['ball_y'] < data['paddle_y'] + 100 and
             data['ball_y'] + 15 > data['paddle_y']):
-            reward += 1000
+            reward += 20
             print(f"BOUNCED!!{random.randint(0, 9)}")
 
         print(f"Reward:\t{reward}")
