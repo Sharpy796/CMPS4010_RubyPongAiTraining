@@ -200,15 +200,6 @@ while True:
             print(f"BOUNCED!!{random.randint(0, 9)}")
 
         print(f"Reward:\t{reward}")
-        # ball_reward = (-abs(data['ball_y']-data['paddle_y']-50)+50)/2
-        # if (ball_reward > 0):
-        #     reward += ball_reward
-        #     if (last_action == 0): # stop being so jittery
-        #         reward += ball_reward
-
-            # done = True
-            
-            # print(f"Reward: {(-abs(data['ball_y']-data['paddle_y']-50)+50)}")
 
         # Store previous experience and train step if previous frame exists
         if last_state is not None:
@@ -230,8 +221,8 @@ while True:
         print("\nStopping PyTorch AI Server...")
         # Save the neural network weights to a file
         # TODO: If you'd like to save this, you can uncomment these two lines
-        # torch.save(agent.model.state_dict(), "pong_ai.pth") 
-        # print("Model weights successfully saved to 'pong_ai.pth'.")
+        torch.save(agent.model.state_dict(), "pong_ai.pth") 
+        print("Model weights successfully saved to 'pong_ai.pth'.")
         break
     except Exception as e:
         print(f"Error: {e}")

@@ -174,7 +174,7 @@ update do
 
     if ball.y < center - 10
       p1.direction = :up
-    elsif ball.y > center + 10
+    elsif ball.y > center + 10 + Ball::SIZE
       p1.direction = :down
     else
       p1.direction = nil
