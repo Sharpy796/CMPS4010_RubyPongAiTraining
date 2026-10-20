@@ -1,0 +1,9 @@
+- Game menu(?)
+    - 2-player
+    - 1-player vs learning ai model (cpu vs ai default, player vs ai when press 'p')
+- in 1-player mode:
+    - p2 score = successful bounces against p2 paddle
+    - p1 score = misses vs p2 paddle
+    - bottom of screen shows current epsilon
+    - bottom of screen shows current iteration reward
+    - bottom of screen shows total reward
