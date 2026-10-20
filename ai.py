@@ -17,10 +17,10 @@ PORT = 65432
 GAMMA = 0.99            # Discount factor for future rewards
 LR = 0.001              # Learning rate
 MEMORY_SIZE = 10000     # Replay buffer capacity
-BATCH_SIZE = 32         # Batch size for training
+BATCH_SIZE = 128 # 32         # Batch size for training
 EPSILON_START = 1       # Starting randomness (100% random moves initially)
 EPSILON_END = 0.05      # Minimum randomness (5% random moves when trained)
-EPSILON_DECAY = 0.9995 #0.9995  # Decay rate per frame
+EPSILON_DECAY = 0.99995 #0.9995  # Decay rate per frame -- 0.99995 is 16.4 minutes
 
 # Select difficulty: 'easy', 'medium', or 'hard'
 DIFFICULTY = 'hard'
@@ -223,8 +223,8 @@ while True:
         print("\nStopping PyTorch AI Server...")
         # Save the neural network weights to a file
         # TODO: If you'd like to save this, you can uncomment these two lines
-        torch.save(agent.model.state_dict(), "pong_ai.pth") 
-        print("Model weights successfully saved to 'pong_ai.pth'.")
+        # torch.save(agent.model.state_dict(), "pong_ai.pth") 
+        # print("Model weights successfully saved to 'pong_ai.pth'.")
         break
     except Exception as e:
         print(f"Error: {e}")
