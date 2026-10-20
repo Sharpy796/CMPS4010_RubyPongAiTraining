@@ -54,8 +54,8 @@ end
 
 class Ball
   SIZE = 15
-  BEEP_PADDLE = Sound.new('audio/retro-pong-hit-sfx.wav')
-  BEEP_WALL = Sound.new('audio/retro-buzzer-hit-sfx.wav')
+  # BEEP_PADDLE = Sound.new('audio/retro-pong-hit-sfx.wav')
+  # BEEP_WALL = Sound.new('audio/retro-buzzer-hit-sfx.wav')
   attr_reader :x, :y, :x_speed, :y_speed
 
   def initialize
@@ -70,17 +70,17 @@ class Ball
     @y_speed = 3 if @y_speed.zero?
   end
 
-  def beep_wall
-    if !$muted
-      BEEP_WALL.play
-    end
-  end
+  # def beep_wall
+  #   if !$muted
+  #     BEEP_WALL.play
+  #   end
+  # end
 
-  def beep_paddle
-    if !$muted
-      BEEP_PADDLE.play
-    end
-  end
+  # def beep_paddle
+  #   if !$muted
+  #     BEEP_PADDLE.play
+  #   end
+  # end
 
   def move
     @x += @x_speed
@@ -89,10 +89,10 @@ class Ball
     # Bounce off top and bottom walls
     if @y <= 0
       @y_speed = (@y_speed).abs
-      beep_wall
+      # beep_wall
     elsif @y + SIZE >= Window.height
       @y_speed = -(@y_speed).abs
-      beep_wall
+      # beep_wall
     end
   end
 
@@ -108,7 +108,7 @@ class Ball
   end
 
   def bounce_x(paddle)
-    beep_paddle
+    # beep_paddle
     # Set speed to a faster speed after the first hit
     if paddle.side == :left
       @x_speed = 8
@@ -136,7 +136,7 @@ framesAfterScored = 0
 countdown_speed = 30
 
 # Audio
-$muted = true
+# $muted = true
 
 # Keybind flags
 shifting = false
@@ -172,7 +172,7 @@ update do
   if $p1_cpu
     center = p1.y + Paddle::HEIGHT / 2
 
-    if ball.y < center - 10
+    if ball.y < center - 10 - Ball::SIZE
       p1.direction = :up
     elsif ball.y > center + 10 + Ball::SIZE
       p1.direction = :down
@@ -206,18 +206,21 @@ update do
     if ball.collides_with?(p1)
       ball.bounce_x(p1)
     elsif ball.collides_with?(p2)
+      if $p1_cpu # TODO: Isolate this to the "1-player" mode rather than $p1_cpu
+        p2_score += 1 # count the number of times the ai bounced the ball
+      end
       ball.bounce_x(p2)
     end
   
     # Scoring check
     if ball.x <= 0
       p2_score += 1
-      ball.beep_wall
+      # ball.beep_wall
       # scored = true
       ball.reset
     elsif ball.x >= Window.width-Ball::SIZE
       p1_score += 1
-      ball.beep_wall
+      # ball.beep_wall
       # scored = true
       ball.reset
     end
@@ -257,16 +260,16 @@ on :key_down do |event|
     if shifting
       close
     end
-  when 'm'
-    if !ming
-      $muted = !$muted
-      if $muted
-        puts 'Muted!'
-      else
-        puts 'Unmuted!'
-      end
-    end
-    ming = true
+  # when 'm'
+  #   if !ming
+  #     $muted = !$muted
+  #     if $muted
+  #       puts 'Muted!'
+  #     else
+  #       puts 'Unmuted!'
+  #     end
+  #   end
+  #   ming = true
   end
 end
 
@@ -279,8 +282,8 @@ on :key_up do |event|
     p2.direction = nil
   when 'left shift', 'right shift'
     shifting = false
-  when 'm'
-    ming = false
+  # when 'm'
+  #   ming = false
   end
 end
 
