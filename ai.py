@@ -6,24 +6,39 @@ import torch.nn as nn
 import torch.optim as optim
 from collections import deque
 import os
-import random
 # ---------------------------------------------------------
 # 1. Configuration & Hyperparameters
 # ---------------------------------------------------------
 HOST = '127.0.0.1'
 PORT = 65432
 
+# Change this if you want to demo an existing .pth file
+TRAINING = True
+
+# Game Constants - For normalization
+WINDOW_WIDTH = 640.0
+WINDOW_HEIGHT = 480.0
+PADDLE_HEIGHT = 100.0
+PADDLE_WIDTH = 20.0
+BALL_SIZE = 15.0
+BALL_SPEED = 8.0
+
 # Hyperparameters for Deep Q-Learning
 GAMMA = 0.99            # Discount factor for future rewards
 LR = 0.001              # Learning rate
 MEMORY_SIZE = 10000     # Replay buffer capacity
 BATCH_SIZE = 128 # 32         # Batch size for training
-EPSILON_START = 1       # Starting randomness (100% random moves initially)
+EPSILON_START = 1.00    # Starting randomness (100% random moves initially)
 EPSILON_END = 0.05      # Minimum randomness (5% random moves when trained)
-EPSILON_DECAY = 0.99995 #0.9995  # Decay rate per frame -- 0.99995 is 16.4 minutes
+EPSILON_DECAY = 0.9999 #0.9995  # Decay rate per frame -- 0.99995 is 16.4 minutes, 0.9999 is 8.3 minutes, 0.9995 is 1.6 minutes
 
 # Select difficulty: 'easy', 'medium', or 'hard'
+# NOTE: DO NOT train on anything other than 'hard', other difficulties will result in noisier training
 DIFFICULTY = 'hard'
+
+# Reward flags
+already_bounced = False
+already_scored = False
 
 # ---------------------------------------------------------
 # 2. PyTorch Neural Network Architecture
@@ -31,7 +46,7 @@ DIFFICULTY = 'hard'
 class PongDQN(nn.Module):
     def __init__(self):
         super(PongDQN, self).__init__()
-        # Input state vector size = 5: [ball_x, ball_y, ball_x_speed, ball_y_speed, paddle_y, paused]
+        # Input state vector size = 6: [ball_x, ball_y, ball_x_speed, ball_y_speed, paddle_y, scored]
         self.fc1 = nn.Linear(6, 64)
         self.fc2 = nn.Linear(64, 64)
         self.fc3 = nn.Linear(64, 3) # Output Q-values for 3 actions: [0: 'none', 1: 'up', 2: 'down']
@@ -63,10 +78,10 @@ class DQNAgent:
             effective_epsilon = self.epsilon
 
         # Epsilon-Greedy Action Selection
-        if random.random() < effective_epsilon:
+        if random.random() < effective_epsilon: # Explore
             return random.randint(0, 2)  # Pick random action
         else:
-            with torch.no_grad():
+            with torch.no_grad(): # Exploit
                 q_values = self.model(state_tensor)
                 return torch.argmax(q_values).item()
 
@@ -114,32 +129,33 @@ print(f"PyTorch AI Server listening on {HOST}:{PORT}...")
 
 agent = DQNAgent()
 
-import os
-
-agent = DQNAgent()
-
 # Load saved weights if they exist
 if os.path.exists("pong_ai.pth"):
     agent.model.load_state_dict(torch.load("pong_ai.pth"))
     agent.model.eval() # Set to evaluation mode if desired
     print("Loaded existing model weights from 'pong_ai.pth'!")
+    if TRAINING:
+        agent.epsilon = EPSILON_END
+        print(f"Epsilon automatically set to {EPSILON_END} to make up for lack of saved epsilon value.") # TODO: Save epsilon on training end
+    else:
+        agent.epsilon = 0.0
+        print("Epsilon automatically set to 0.0 to allow for demo of existing model weights.")
 else:
     print("No saved weights found. Starting fresh training session.")
 
 # State Tracking Variables
 last_state = None
 last_action = 0
-prev_p2_score = 0
-prev_p1_score = 0
 
+# Most values here are normalized for training's sake
 def extract_state_vector(data):
     return [
-        float(data['ball_x']),
-        float(data['ball_y']),
-        float(data['ball_x_speed']),
-        float(data['ball_y_speed']),
-        float(data['paddle_y']),
-        bool(data['paused']) # unused if countdown is unused
+        float(data['ball_x'])/WINDOW_WIDTH,
+        float(data['ball_y'])/WINDOW_HEIGHT,
+        float(data['ball_x_speed'])/BALL_SPEED,
+        float(data['ball_y_speed'])/BALL_SPEED,
+        float(data['paddle_y'])/WINDOW_HEIGHT,
+        bool(data['scored']) # unused if countdown is unused
     ]
 
 # ---------------------------------------------------------
@@ -156,7 +172,7 @@ while True:
 
         # Reward Calculation Strategy
         reward = 0
-        done = False
+        done = False # this is used for when a round ends.
 
         # rewards for:
         # - moving toward the ball
@@ -164,47 +180,57 @@ while True:
 
         # penalties for:
         # - moving away from the ball
-        # - letting the ball get away
+        # - letting the ball get away ('scored')
 
         # neutral for:
-        # - if the countdown is running ('paused')
-        #   - ('paused' isn't being used bc training is faster without a countdown lol)
+        # - if the countdown is running (already_scored)
 
-
-        if (not data['paused']):
-            if data['ball_x'] >= 610: # past paddle, game lost
-                reward = -1000
+        # Rewards read data directly, they don't need normalization.
+        if (data['scored']):
+            if (not already_scored):
+                reward = -400
                 print("HEY YOU LOST")
                 done = True
+                already_scored = True
             else:
-                if (data['ball_y'] < data['paddle_y']): # above paddle
-                    if (last_action == 1): # moving up
-                        reward += 1
-                    else:
-                        reward -= 2
-                elif (data['ball_y']-15 > data['paddle_y']+100): # below paddle
-                    if (last_action == 2): # moving down
-                        reward += 1
-                    else:
-                        reward -= 2
-                else: # in front of paddle
-                    reward += 2
+                print("Duplicate loss...")
         else:
-            # print(f"hey the ball is being still{random.randint(0, 9)}")
-            pass # no points for losing
+            already_scored = False
+            if (data['ball_y'] < data['paddle_y']): # above paddle
+                if (last_action == 1): # moving up
+                    reward += 1
+                else:
+                    reward -= 4
+            elif (data['ball_y'] > data['paddle_y']+PADDLE_HEIGHT-BALL_SIZE): # below paddle
+                if (last_action == 2): # moving down
+                    reward += 1
+                else:
+                    reward -= 4
+            elif (data['paddle_y'] < data['ball_y']+PADDLE_HEIGHT*0.25 and
+                    data['ball_y'] < data['paddle_y']+(PADDLE_HEIGHT-BALL_SIZE)*0.75): # in center of paddle
+                reward += 4
+            else: # on edges of paddle
+                reward += 2
 
         # successful bounce!
-        if (data['ball_x'] < 580 + 50 and
-            data['ball_x'] + 15 > 580 and
+        if (data['ball_x'] < 580 + PADDLE_WIDTH and
+            data['ball_x'] + BALL_SIZE > 580 and
             data['ball_y'] < data['paddle_y'] + 100 and
-            data['ball_y'] + 15 > data['paddle_y']):
-            reward += 20
-            print(f"BOUNCED!!{random.randint(0, 9)}")
+            data['ball_y'] + BALL_SIZE > data['paddle_y']):
+            if not already_bounced:
+                reward += 20
+                print(f"BOUNCED!!{random.randint(0, 9)}")
+                already_bounced = True
+            else:
+                print("Duplicate bounce...")
+        else:
+            already_bounced = False
 
+        # if not TRAINING:
         print(f"Reward:\t{reward}")
 
         # Store previous experience and train step if previous frame exists
-        if last_state is not None:
+        if last_state is not None and TRAINING:
             agent.store_transition(last_state, last_action, reward, current_state, done)
             agent.train_step()
 
@@ -223,8 +249,9 @@ while True:
         print("\nStopping PyTorch AI Server...")
         # Save the neural network weights to a file
         # TODO: If you'd like to save this, you can uncomment these two lines
-        # torch.save(agent.model.state_dict(), "pong_ai.pth") 
-        # print("Model weights successfully saved to 'pong_ai.pth'.")
+        if TRAINING:
+            torch.save(agent.model.state_dict(), "pong_ai.pth") 
+            print("Model weights successfully saved to 'pong_ai.pth'.")
         break
     except Exception as e:
         print(f"Error: {e}")

@@ -1,6 +1,8 @@
 - Game menu(?)
     - 2-player
     - 1-player vs learning ai model (cpu vs ai default, player vs ai when press 'p')
+        - "train me!" vs "demo" mode
+        - before quitting after training: "do you want to save to .pth?" 
 - in 1-player mode:
     - p2 score = successful bounces against p2 paddle
     - p1 score = misses vs p2 paddle
