@@ -31,6 +31,8 @@ class Paddle
     else
       @x = 580
     end
+    
+    @obj = Rectangle.new(x: @x, y: @y, width: WIDTH, height: HEIGHT, color: $game_color_1)
   end
 
   def move
@@ -42,7 +44,8 @@ class Paddle
   end
 
   def draw
-    Rectangle.new(x: @x, y: @y, width: WIDTH, height: HEIGHT, color: $game_color_1)
+    @obj.x = @x
+    @obj.y = @y
   end
 
   private
@@ -54,12 +57,11 @@ end
 
 class Ball
   SIZE = 15
-  # BEEP_PADDLE = Sound.new('audio/retro-pong-hit-sfx.wav')
-  # BEEP_WALL = Sound.new('audio/retro-buzzer-hit-sfx.wav')
   attr_reader :x, :y, :x_speed, :y_speed
 
   def initialize
     reset
+    @obj = Square.new(x: @x, y: @y, size: SIZE, color: $game_color_2)
   end
 
   def reset
@@ -70,18 +72,6 @@ class Ball
     @y_speed = 3 if @y_speed.zero?
   end
 
-  # def beep_wall
-  #   if !$muted
-  #     BEEP_WALL.play
-  #   end
-  # end
-
-  # def beep_paddle
-  #   if !$muted
-  #     BEEP_PADDLE.play
-  #   end
-  # end
-
   def move
     @x += @x_speed
     @y += @y_speed
@@ -89,15 +79,14 @@ class Ball
     # Bounce off top and bottom walls
     if @y <= 0
       @y_speed = (@y_speed).abs
-      # beep_wall
     elsif @y + SIZE >= Window.height
       @y_speed = -(@y_speed).abs
-      # beep_wall
     end
   end
 
   def draw
-    Square.new(x: @x, y: @y, size: SIZE, color: $game_color_2)
+    @obj.x = @x
+    @obj.y = @y
   end
 
   def collides_with?(paddle)
@@ -121,22 +110,46 @@ class Ball
   end
 end
 
+class Score
+  attr_reader :p1, :p2
+
+  def initialize
+    @obj = Text.new("foobar", x: Window.width / 2 - 30, y: 20, size: 30, color: $game_color_2)
+    reset
+  end
+
+  def reset
+    @p1 = 0
+    @p2 = 0
+    update
+  end
+
+  def p1_win
+    @p1 += 1
+    update
+  end
+
+  def p2_win
+    @p2 += 1
+    update
+  end
+
+  def update
+    @obj.text = "#{@p1}   #{@p2}"
+  end  
+end
+
 # Game objects
 p1 = Paddle.new(:left)   # Left player (W/S)
 p2 = Paddle.new(:right)  # Right player / AI (Up/Down)
 ball = Ball.new
+score = Score.new
 
-# Score trackers
-p1_score = 0
-p2_score = 0
 
 # Countdown trackers
 scored = false
 framesAfterScored = 0
 countdown_speed = 30
-
-# Audio
-# $muted = true
 
 # Keybind flags
 shifting = false
@@ -144,7 +157,6 @@ ming = false
 
 # Game loop (60 FPS)
 update do
-  clear
 
   # --- AI Communication Block ---
   # Send state to Python PyTorch Server
@@ -210,20 +222,18 @@ update do
       ball.bounce_x(p1)
     elsif ball.collides_with?(p2)
       if $p1_cpu # TODO: Isolate this to the "1-player" mode rather than $p1_cpu
-        p2_score += 1 # count the number of times the ai bounced the ball
+        score.p2_win # count the number of times the ai bounced the ball
       end
       ball.bounce_x(p2)
     end
   
     # Scoring check
     if ball.x <= 0
-      p2_score += 1
-      # ball.beep_wall
+      score.p2_win
       # scored = true
       ball.reset
     elsif ball.x >= Window.width-Ball::SIZE
-      p1_score += 1
-      # ball.beep_wall
+      score.p1_win
       scored = true
       ball.reset
     end
@@ -233,9 +243,6 @@ update do
   ball.draw
   p1.draw
   p2.draw
-
-  # Display score
-  Text.new("#{p1_score}   #{p2_score}", x: Window.width / 2 - 30, y: 20, size: 30, color: $game_color_2)
 end
 
 # Key down handlers
@@ -263,16 +270,6 @@ on :key_down do |event|
     if shifting
       close
     end
-  # when 'm'
-  #   if !ming
-  #     $muted = !$muted
-  #     if $muted
-  #       puts 'Muted!'
-  #     else
-  #       puts 'Unmuted!'
-  #     end
-  #   end
-  #   ming = true
   end
 end
 
@@ -285,8 +282,6 @@ on :key_up do |event|
     p2.direction = nil
   when 'left shift', 'right shift'
     shifting = false
-  # when 'm'
-  #   ming = false
   end
 end
 
