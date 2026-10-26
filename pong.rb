@@ -9,6 +9,7 @@ set title: "Pong"
 set background: '#000000'
 set width: 640
 set height: 480
+set icon: 'icons/pong_icon.png'
 $game_color_1 = '#ff00ff'
 $game_color_2 = '#00ffff'
 $p1_cpu = true

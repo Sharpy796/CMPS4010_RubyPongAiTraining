@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="96" fill="#000000"/>
+  <!-- left paddle (low) -->
+  <rect x="72" y="212" width="52" height="232" fill="#ff00ff"/>
+  <!-- right paddle (high) -->
+  <rect x="388" y="68" width="52" height="232" fill="#ff00ff"/>
+  <!-- ball -->
+  <rect x="236" y="300" width="44" height="44" fill="#00ffff"/>
+</svg>
