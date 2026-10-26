@@ -154,7 +154,7 @@ update do
     ball_x_speed: ball.x_speed,
     ball_y_speed: ball.y_speed,
     paddle_y: p2.y,
-    paused: scored
+    scored: scored
   })
 
   # Read decision from Python Server and steer p2
@@ -184,20 +184,23 @@ update do
   p1.move
   p2.move
 
+  # TODO: Implement separate "paused" variable for countdown management
+  # "scored" is used to report scoring events in the ai
   if scored
-    # Enact countdown
-    framesAfterScored += 1
-    if framesAfterScored >= countdown_speed*3
-      ball.reset
-      framesAfterScored = 0
-      scored = false
-    elsif framesAfterScored >= countdown_speed*2
-      Text.new('1', x: Window.width/2-15, y: Window.height/2-30, size: 60, color: $game_color_2)
-    elsif framesAfterScored >= countdown_speed
-      Text.new('2', x: Window.width/2-15, y: Window.height/2-30, size: 60, color: $game_color_2)
-    else
-      Text.new('3', x: Window.width/2-15, y: Window.height/2-30, size: 60, color: $game_color_2)
-    end
+    # # Enact countdown
+    # framesAfterScored += 1
+    # if framesAfterScored >= countdown_speed*3
+    #   ball.reset
+    #   framesAfterScored = 0
+    #   scored = false
+    # elsif framesAfterScored >= countdown_speed*2
+    #   Text.new('1', x: Window.width/2-15, y: Window.height/2-30, size: 60, color: $game_color_2)
+    # elsif framesAfterScored >= countdown_speed
+    #   Text.new('2', x: Window.width/2-15, y: Window.height/2-30, size: 60, color: $game_color_2)
+    # else
+    #   Text.new('3', x: Window.width/2-15, y: Window.height/2-30, size: 60, color: $game_color_2)
+    # end
+    scored = false
   else
     # Move ball
     ball.move
@@ -221,7 +224,7 @@ update do
     elsif ball.x >= Window.width-Ball::SIZE
       p1_score += 1
       # ball.beep_wall
-      # scored = true
+      scored = true
       ball.reset
     end
   end
