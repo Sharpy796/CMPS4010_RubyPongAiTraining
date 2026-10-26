@@ -1,3 +1,13 @@
+- Training should not rely on the window and 60fps game loop to speed up training
+    - sync ruby and python files so we don't run into a race to train
+
+- Config json so we can match constants between ruby and python files
+    - window dimensions
+    - paddle/ball sizes/positions
+    - etc
+
+- send epsilon and other data from py to rb
+
 - Game menu(?)
     - 2-player
     - 1-player vs learning ai model (cpu vs ai default, player vs ai when press 'p')

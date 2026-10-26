@@ -1,6 +1,8 @@
 require 'ruby2d'
 require_relative 'socket_client' # Loads your socket client helper
 
+DEMOING = false
+
 # Initialize AI Socket Client
 ai_client = AIClient.new
 
@@ -9,9 +11,11 @@ set title: "Pong"
 set background: '#000000'
 set width: 640
 set height: 480
+set icon: 'icons/pong_icon.png'
 $game_color_1 = '#ff00ff'
 $game_color_2 = '#00ffff'
 $p1_cpu = true
+$p2_cpu = true
 
 class Paddle
   HEIGHT = 100
@@ -31,6 +35,8 @@ class Paddle
     else
       @x = 580
     end
+    
+    @obj = Rectangle.new(x: @x, y: @y, width: WIDTH, height: HEIGHT, color: $game_color_1)
   end
 
   def move
@@ -42,7 +48,8 @@ class Paddle
   end
 
   def draw
-    Rectangle.new(x: @x, y: @y, width: WIDTH, height: HEIGHT, color: $game_color_1)
+    @obj.x = @x
+    @obj.y = @y
   end
 
   private
@@ -54,12 +61,11 @@ end
 
 class Ball
   SIZE = 15
-  # BEEP_PADDLE = Sound.new('audio/retro-pong-hit-sfx.wav')
-  # BEEP_WALL = Sound.new('audio/retro-buzzer-hit-sfx.wav')
   attr_reader :x, :y, :x_speed, :y_speed
 
   def initialize
     reset
+    @obj = Square.new(x: @x, y: @y, size: SIZE, color: $game_color_2)
   end
 
   def reset
@@ -70,18 +76,6 @@ class Ball
     @y_speed = 3 if @y_speed.zero?
   end
 
-  # def beep_wall
-  #   if !$muted
-  #     BEEP_WALL.play
-  #   end
-  # end
-
-  # def beep_paddle
-  #   if !$muted
-  #     BEEP_PADDLE.play
-  #   end
-  # end
-
   def move
     @x += @x_speed
     @y += @y_speed
@@ -89,15 +83,14 @@ class Ball
     # Bounce off top and bottom walls
     if @y <= 0
       @y_speed = (@y_speed).abs
-      # beep_wall
     elsif @y + SIZE >= Window.height
       @y_speed = -(@y_speed).abs
-      # beep_wall
     end
   end
 
   def draw
-    Square.new(x: @x, y: @y, size: SIZE, color: $game_color_2)
+    @obj.x = @x
+    @obj.y = @y
   end
 
   def collides_with?(paddle)
@@ -121,30 +114,87 @@ class Ball
   end
 end
 
+class Score
+  attr_reader :p1, :p2
+
+  def initialize
+    @obj = Text.new("foobar", x: Window.width / 2 - 30, y: 20, size: 30, color: $game_color_2)
+    reset
+  end
+
+  def reset
+    @p1 = 0
+    @p2 = 0
+    update
+  end
+
+  def p1_win
+    @p1 += 1
+    update
+  end
+
+  def p2_win
+    @p2 += 1
+    update
+  end
+
+  def update
+    @obj.text = "#{@p1}   #{@p2}"
+  end
+end
+
+class Epsilon
+  def initialize
+    @EPSILON_START = 1.00
+    @EPSILON_END = 0.05
+    @EPSILON_DECAY = 0.9999
+    @effective_epsilon = @EPSILON_START
+    @obj = Text.new("ε", x: Window.width / 2 - 65, y: Window.height - 40, size: 30, color: $game_color_2)
+    update
+  end
+
+  def increment
+    if @effective_epsilon > @EPSILON_END
+      @effective_epsilon *= @EPSILON_DECAY
+    end
+    update
+  end
+
+  def update
+    @obj.text = "ε: #{@effective_epsilon.round(5)}"
+  end
+
+  def hide
+    @obj.remove
+  end
+
+  def show
+    @obj.add
+  end
+end
+
 # Game objects
 p1 = Paddle.new(:left)   # Left player (W/S)
 p2 = Paddle.new(:right)  # Right player / AI (Up/Down)
 ball = Ball.new
+score = Score.new
+epsilon = Epsilon.new
+if DEMOING
+  epsilon.hide
+end
 
-# Score trackers
-p1_score = 0
-p2_score = 0
 
 # Countdown trackers
 scored = false
 framesAfterScored = 0
 countdown_speed = 30
 
-# Audio
-# $muted = true
-
 # Keybind flags
-shifting = false
+ctrling = false
 ming = false
 
 # Game loop (60 FPS)
 update do
-  clear
 
   # --- AI Communication Block ---
   # Send state to Python PyTorch Server
@@ -158,7 +208,7 @@ update do
   })
 
   # Read decision from Python Server and steer p2
-  if (action = ai_client.receive_action)
+  if ($p2_cpu && action = ai_client.receive_action)
     case action
     when 'up'   then p2.direction = :up
     when 'down' then p2.direction = :down
@@ -210,20 +260,18 @@ update do
       ball.bounce_x(p1)
     elsif ball.collides_with?(p2)
       if $p1_cpu # TODO: Isolate this to the "1-player" mode rather than $p1_cpu
-        p2_score += 1 # count the number of times the ai bounced the ball
+        score.p2_win # count the number of times the ai bounced the ball
       end
       ball.bounce_x(p2)
     end
   
     # Scoring check
     if ball.x <= 0
-      p2_score += 1
-      # ball.beep_wall
+      score.p2_win
       # scored = true
       ball.reset
     elsif ball.x >= Window.width-Ball::SIZE
-      p1_score += 1
-      # ball.beep_wall
+      score.p1_win
       scored = true
       ball.reset
     end
@@ -233,9 +281,7 @@ update do
   ball.draw
   p1.draw
   p2.draw
-
-  # Display score
-  Text.new("#{p1_score}   #{p2_score}", x: Window.width / 2 - 30, y: 20, size: 30, color: $game_color_2)
+  epsilon.increment
 end
 
 # Key down handlers
@@ -257,22 +303,22 @@ on :key_down do |event|
   when 'p'
     $p1_cpu = !$p1_cpu
     p1.direction = nil
-  when 'left shift', 'right shift'
-    shifting = true
+  when 'o'
+    $p2_cpu = !$p2_cpu
+    p2.direction = nil
+  when 'e'
+    $DEMOING = !$DEMOING
+    if $DEMOING
+      epsilon.hide
+    else
+      epsilon.show
+    end
+  when 'left ctrl', 'right ctrl'
+    ctrling = true
   when 'c'
-    if shifting
+    if ctrling
       close
     end
-  # when 'm'
-  #   if !ming
-  #     $muted = !$muted
-  #     if $muted
-  #       puts 'Muted!'
-  #     else
-  #       puts 'Unmuted!'
-  #     end
-  #   end
-  #   ming = true
   end
 end
 
@@ -283,10 +329,8 @@ on :key_up do |event|
     p1.direction = nil
   when 'up', 'down'
     p2.direction = nil
-  when 'left shift', 'right shift'
-    shifting = false
-  # when 'm'
-  #   ming = false
+  when 'left ctrl', 'right ctrl'
+    ctrling = false
   end
 end
 
