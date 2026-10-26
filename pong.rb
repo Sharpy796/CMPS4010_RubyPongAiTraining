@@ -1,6 +1,8 @@
 require 'ruby2d'
 require_relative 'socket_client' # Loads your socket client helper
 
+DEMOING = false
+
 # Initialize AI Socket Client
 ai_client = AIClient.new
 
@@ -141,11 +143,45 @@ class Score
   end
 end
 
+class Epsilon
+  def initialize
+    @EPSILON_START = 1.00
+    @EPSILON_END = 0.05
+    @EPSILON_DECAY = 0.9999
+    @effective_epsilon = @EPSILON_START
+    @obj = Text.new("ε", x: Window.width / 2 - 65, y: Window.height - 40, size: 30, color: $game_color_2)
+    update
+  end
+
+  def increment
+    if @effective_epsilon > @EPSILON_END
+      @effective_epsilon *= @EPSILON_DECAY
+    end
+    update
+  end
+
+  def update
+    @obj.text = "ε: #{@effective_epsilon.round(5)}"
+  end
+
+  def hide
+    @obj.remove
+  end
+
+  def show
+    @obj.add
+  end
+end
+
 # Game objects
 p1 = Paddle.new(:left)   # Left player (W/S)
 p2 = Paddle.new(:right)  # Right player / AI (Up/Down)
 ball = Ball.new
 score = Score.new
+epsilon = Epsilon.new
+if DEMOING
+  epsilon.hide
+end
 
 
 # Countdown trackers
@@ -245,6 +281,9 @@ update do
   ball.draw
   p1.draw
   p2.draw
+  if !DEMOING
+    epsilon.increment
+  end
 end
 
 # Key down handlers
