@@ -1,5 +1,6 @@
 import socket
 import json
+import math
 import random
 import torch
 import torch.nn as nn
@@ -20,8 +21,10 @@ WINDOW_WIDTH = 640.0
 WINDOW_HEIGHT = 480.0
 PADDLE_HEIGHT = 100.0
 PADDLE_WIDTH = 20.0
+PADDLE_RIGHT_X = 580.0
 BALL_SIZE = 15.0
 BALL_SPEED = 8.0
+H = (PADDLE_HEIGHT - BALL_SIZE) / 2
 
 # Hyperparameters for Deep Q-Learning
 GAMMA = 0.99            # Discount factor for future rewards
@@ -141,7 +144,10 @@ if os.path.exists("pong_ai.pth"):
         agent.epsilon = 0.0
         print("Epsilon automatically set to 0.0 to allow for demo of existing model weights.")
 else:
-    print("No saved weights found. Starting fresh training session.")
+    if TRAINING:
+        print("No saved weights found. Starting fresh training session.")
+    else:
+        print("No saved weights found. TRAINING DISABLED. Please enable training.")
 
 # State Tracking Variables
 last_state = None
@@ -186,6 +192,24 @@ while True:
         # - if the countdown is running (already_scored)
 
         # Rewards read data directly, they don't need normalization.
+        
+
+        # successful bounce!
+        if (data['ball_x'] < 580 + PADDLE_WIDTH and
+            data['ball_x'] + BALL_SIZE > 580 and
+            data['ball_y'] < data['paddle_y'] + 100 and
+            data['ball_y'] + BALL_SIZE > data['paddle_y']):
+            if not already_bounced:
+                reward += 20
+                print(f"BOUNCED!!{random.randint(0, 9)}")
+                already_bounced = True
+            else:
+                print("Duplicate bounce...")
+                reward += 1
+        else:
+            already_bounced = False
+
+        # TODO: Bad ai, why are you dodging the ball, stop dodging the ball PLEASEEEEE
         if (data['scored']):
             if (not already_scored):
                 reward = -400
@@ -206,28 +230,15 @@ while True:
                     reward += 1
                 else:
                     reward -= 4
-            elif (data['paddle_y'] < data['ball_y']+PADDLE_HEIGHT*0.25 and
-                    data['ball_y'] < data['paddle_y']+(PADDLE_HEIGHT-BALL_SIZE)*0.75): # in center of paddle
-                reward += 4
-            else: # on edges of paddle
-                reward += 2
-
-        # successful bounce!
-        if (data['ball_x'] < 580 + PADDLE_WIDTH and
-            data['ball_x'] + BALL_SIZE > 580 and
-            data['ball_y'] < data['paddle_y'] + 100 and
-            data['ball_y'] + BALL_SIZE > data['paddle_y']):
-            if not already_bounced:
-                reward += 20
-                print(f"BOUNCED!!{random.randint(0, 9)}")
-                already_bounced = True
             else:
-                print("Duplicate bounce...")
-        else:
-            already_bounced = False
+                # reward += 5 - min(int(abs(data['ball_y'] - data['paddle_y'] - H) / H * 5), 4)
+                reward += 3 - min(int(abs(data['ball_y'] - data['paddle_y'] - H) / H * 3), 2)
+            
+            if (data['ball_x'] + BALL_SIZE > WINDOW_WIDTH / 2 and data['ball_x_speed'] > 0):
+                reward *= 2
 
         # if not TRAINING:
-        print(f"Reward:\t{reward}")
+        print(f"Reward:\t{reward:7.2f}")
 
         # Store previous experience and train step if previous frame exists
         if last_state is not None and TRAINING:
