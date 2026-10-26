@@ -6,6 +6,8 @@
     - paddle/ball sizes/positions
     - etc
 
+- send epsilon and other data from py to rb
+
 - Game menu(?)
     - 2-player
     - 1-player vs learning ai model (cpu vs ai default, player vs ai when press 'p')
