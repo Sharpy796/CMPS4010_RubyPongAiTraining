@@ -13,6 +13,7 @@ set icon: 'icons/pong_icon.png'
 $game_color_1 = '#ff00ff'
 $game_color_2 = '#00ffff'
 $p1_cpu = true
+$p2_cpu = true
 
 class Paddle
   HEIGHT = 100
@@ -137,7 +138,7 @@ class Score
 
   def update
     @obj.text = "#{@p1}   #{@p2}"
-  end  
+  end
 end
 
 # Game objects
@@ -153,7 +154,7 @@ framesAfterScored = 0
 countdown_speed = 30
 
 # Keybind flags
-shifting = false
+ctrling = false
 ming = false
 
 # Game loop (60 FPS)
@@ -171,7 +172,7 @@ update do
   })
 
   # Read decision from Python Server and steer p2
-  if (action = ai_client.receive_action)
+  if ($p2_cpu && action = ai_client.receive_action)
     case action
     when 'up'   then p2.direction = :up
     when 'down' then p2.direction = :down
@@ -265,10 +266,13 @@ on :key_down do |event|
   when 'p'
     $p1_cpu = !$p1_cpu
     p1.direction = nil
-  when 'left shift', 'right shift'
-    shifting = true
+  when 'o'
+    $p2_cpu = !$p2_cpu
+    p2.direction = nil
+  when 'left ctrl', 'right ctrl'
+    ctrling = true
   when 'c'
-    if shifting
+    if ctrling
       close
     end
   end
@@ -281,8 +285,8 @@ on :key_up do |event|
     p1.direction = nil
   when 'up', 'down'
     p2.direction = nil
-  when 'left shift', 'right shift'
-    shifting = false
+  when 'left ctrl', 'right ctrl'
+    ctrling = false
   end
 end
 
