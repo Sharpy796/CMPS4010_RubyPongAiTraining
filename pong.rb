@@ -281,9 +281,7 @@ update do
   ball.draw
   p1.draw
   p2.draw
-  if !DEMOING
-    epsilon.increment
-  end
+  epsilon.increment
 end
 
 # Key down handlers
@@ -308,6 +306,13 @@ on :key_down do |event|
   when 'o'
     $p2_cpu = !$p2_cpu
     p2.direction = nil
+  when 'e'
+    $DEMOING = !$DEMOING
+    if $DEMOING
+      epsilon.hide
+    else
+      epsilon.show
+    end
   when 'left ctrl', 'right ctrl'
     ctrling = true
   when 'c'
