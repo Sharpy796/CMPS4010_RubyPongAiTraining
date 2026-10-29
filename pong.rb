@@ -134,7 +134,7 @@ class PongGame
     end
 
     def update
-      @obj.text = "#{@p1}   #{@p2}"
+      @obj.content = "#{@p1}   #{@p2}"
     end
 
     def remove
@@ -148,7 +148,7 @@ class PongGame
       @EPSILON_END = 0.05
       @EPSILON_DECAY = 0.9999
       @effective_epsilon = @EPSILON_START
-      @obj = Text.new("ε", x: Window.width / 2 - 65, y: Window.height - 40, size: 30, color: color)
+      @obj = Text.new("ε", x: Window.width / 2 - 65, y: Window.height - 40, size: 30, color: color, font: '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf')
       update
     end
 
@@ -160,7 +160,7 @@ class PongGame
     end
 
     def update
-      @obj.text = "ε: #{@effective_epsilon.round(5)}"
+      @obj.content = "ε: #{@effective_epsilon.round(5)}"
     end
 
     def hide

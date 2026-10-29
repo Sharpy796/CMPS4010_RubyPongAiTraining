@@ -1,70 +1,81 @@
 require 'ruby2d'
 require_relative 'pong'
+require_relative 'connect4'
 
 set title: "Arcade Hub", width: 640, height: 480
 
 # --- MENU CLASS ---
 class Menu
+  attr_reader :btn_pong, :btn_connect4
+
   def initialize
-    @title = Text.new("ARCADE MENU", x: 200, y: 100, size: 36, color: '#00ffff')
-    @opt1  = Text.new("Press 1 for Pong", x: 180, y: 200, size: 22, color: 'red')
-    @opt2  = Text.new("Connect 4 Coming Soon!", x: 180, y: 250, size: 22, color: 'red')
-    @hint  = Text.new("Press ESC in any game to return to Menu", x: 150, y: 380, size: 16, color: 'gray')
+    @title = Text.new("ARCADE MENU", x: 170, y: 80, size: 36, color: '#00ffff')
+    @hint  = Text.new("Press ESC in any game to return to Menu", x: 170, y: 380, size: 16, color: 'gray')
+
+    # Button 1: Pong
+    @btn_pong = Button.new(
+      x: 225, y: 160,
+      width: 190, height: 35,
+      label: 'Play Pong',
+      color: '#FF00FF',
+      hover_color: '#444444',
+      pressed_color: '#ff9800'
+    ) do
+      start_game(:pong)
+    end
+
+    # Button 2: Connect 4
+    @btn_connect4 = Button.new(
+      x: 225, y: 220,
+      width: 190, height: 35,
+      label: 'Play Connect 4',
+      color: '#0033cc',
+      hover_color: '#0055ff',
+      pressed_color: '#0088ff'
+    ) do
+      start_game(:connect4)
+    end
   end
 
   def hide
     @title.remove
-    @opt1.remove
-    @opt2.remove
     @hint.remove
+    @btn_pong.remove
+    @btn_connect4.remove
   end
 
   def show
     @title.add
-    @opt1.add
-    @opt2.add
     @hint.add
-  end
-end
-
-# --- GAME 1: Simple Clicker (Dummy Game) ---
-=begin
-class ClickerGame
-  def initialize
-    @score = 0
-    @title = Text.new("Clicker Game!", x: 230, y: 130, size: 28, color: 'yellow')
-    @score_text = Text.new("Score: 0", x: 270, y: 190, size: 24, color: 'white')
-    @instructions = Text.new("Press SPACE to score | Press ESC for Menu", x: 130, y: 270, size: 18, color: 'gray')
+    @btn_pong.add
+    @btn_connect4.add
   end
 
-  def handle_key_down(key)
-    if key == 'space'
-      @score += 1
-      @score_text.text = "Score: #{@score}"
+  private
+
+  def start_game(game_type)
+    hide
+    case game_type
+    when :pong
+      $active_game = PongGame.new
+      $current_state = :pong
+    when :connect4
+      $active_game = Connect4Game.new
+      $current_state = :connect4
     end
   end
-
-  def handle_key_up(key)
-    # No action needed for clicker
-  end
-
-  def cleanup
-    @title.remove
-    @score_text.remove
-    @instructions.remove
-  end
 end
-=end
+
 # --- STATE AND INSTANCES ---
-$current_state = :menu # :menu, :clicker, :pong
+$current_state = :menu # :menu, :pong, :connect4
+$active_game = nil
 menu = Menu.new
-active_game = nil
 
 # --- MAIN GAME LOOP ---
 update do
   case $current_state
-  when :pong
-    active_game.update if active_game
+  when :pong, :connect4
+    $active_game.update if $active_game
   end
 end
 
@@ -72,24 +83,21 @@ end
 on :key_down do |event|
   case $current_state
   when :menu
-    #if event.key == '1'
-      #menu.hide
-      #active_game = ClickerGame.new
-      #$current_state = :clicker
+    # Keyboard shortcuts to start games directly
     if event.key == '1'
-      menu.hide
-      active_game = PongGame.new
-      $current_state = :pong
+      menu.send(:start_game, :pong)
+    elsif event.key == '2'
+      menu.send(:start_game, :connect4)
     end
 
-  when :clicker, :pong
+  when :pong, :connect4
     if event.key == 'escape'
-      active_game.cleanup if active_game
-      active_game = nil
+      $active_game.cleanup if $active_game
+      $active_game = nil
       menu.show
       $current_state = :menu
     else
-      active_game.handle_key_down(event.key) if active_game
+      $active_game.handle_key_down(event.key) if $active_game
     end
   end
 end
@@ -97,8 +105,8 @@ end
 # --- KEY UP ROUTER ---
 on :key_up do |event|
   case $current_state
-  when :pong, :clicker
-    active_game.handle_key_up(event.key) if active_game
+  when :pong, :connect4
+    $active_game.handle_key_up(event.key) if $active_game
   end
 end
 
