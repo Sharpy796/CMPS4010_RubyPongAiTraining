@@ -1,6 +1,9 @@
 import socket
 import json
 import random
+import os
+import signal
+import sys
 from collections import deque
 import torch
 import torch.nn as nn
@@ -10,7 +13,8 @@ import torch.optim as optim
 # 1. Configuration & Hyperparameters
 # ---------------------------------------------------------
 HOST = '127.0.0.1'
-PORT = 65433  # Dedicated port for Connect 4 AI (Pong is 65432)
+PORT = 65433  # Dedicated port for Connect 4 AI
+MODEL_PATH = "connect4_ai.pth"
 
 TRAINING = True
 
@@ -53,6 +57,15 @@ class Connect4Agent:
         self.memory = deque(maxlen=MEMORY_SIZE)
         self.epsilon = EPSILON_START
 
+        # Load existing weights if present
+        if os.path.exists(MODEL_PATH):
+            try:
+                self.model.load_state_dict(torch.load(MODEL_PATH))
+                self.epsilon = 0.20  # Start with higher exploitation if pre-trained
+                print(f"Loaded existing model weights from '{MODEL_PATH}'!")
+            except Exception as e:
+                print(f"Could not load '{MODEL_PATH}': {e}. Starting fresh.")
+
     def get_valid_actions(self, grid):
         """Returns list of column indices where top row is empty"""
         return [c for c in range(COLS) if grid[0][c] is None]
@@ -67,7 +80,7 @@ class Connect4Agent:
         else:
             with torch.no_grad():
                 q_values = self.model(state_tensor).squeeze(0)
-                # Mask out invalid columns with a large negative number
+                # Mask out full columns
                 for c in range(ACTION_SIZE):
                     if c not in valid_actions:
                         q_values[c] = -1e9
@@ -106,14 +119,12 @@ class Connect4Agent:
         if self.epsilon > EPSILON_END:
             self.epsilon *= EPSILON_DECAY
 
+    def save_weights(self):
+        torch.save(self.model.state_dict(), MODEL_PATH)
+        print(f"--> Saved weights checkpoint to '{MODEL_PATH}'")
+
 
 def grid_to_vector(grid):
-    """
-    Encodes grid from perspective of Player 2 (AI):
-    Player 2 (AI) = +1.0
-    Player 1 (Opponent) = -1.0
-    Empty = 0.0
-    """
     flat = []
     for r in range(ROWS):
         for c in range(COLS):
@@ -137,79 +148,89 @@ if __name__ == '__main__':
 
     print(f"============================================")
     print(f"Connect 4 PyTorch AI Server Listening on {HOST}:{PORT}")
+    print(f"Will auto-save '{MODEL_PATH}' after every match and on exit.")
     print(f"============================================")
 
     last_state = None
     last_action = None
     games_played = 0
 
-    while True:
-        try:
-            raw_data, addr = sock.recvfrom(2048)
-            data = json.loads(raw_data.decode('utf-8'))
+    # Handle termination signals cleanly (Ctrl+C, kill, terminal close)
+    running = [True]
 
-            # Incoming JSON format:
-            # {
-            #   "grid": [...],
-            #   "winner": null | 1 | 2 | "draw",
-            #   "current_player": 2,
-            #   "game_over": false
-            # }
+    def handle_exit(signum, frame):
+        running[0] = False
+        print(f"\n[Signal {signum}] Shutting down Connect 4 AI Server...")
+        if TRAINING:
+            agent.save_weights()
+            print("Model weights safely saved on shutdown.")
+        sys.exit(0)
 
-            grid = data['grid']
-            winner = data.get('winner')
-            game_over = data.get('game_over', False)
-            current_state = grid_to_vector(grid)
-            current_state_tensor = torch.tensor(current_state, dtype=torch.float32).unsqueeze(0)
+    signal.signal(signal.SIGINT, handle_exit)
+    signal.signal(signal.SIGTERM, handle_exit)
 
-            # Compute Reward for AI (Player 2)
-            reward = 0.0
-            done = False
+    try:
+        while running[0]:
+            try:
+                raw_data, addr = sock.recvfrom(2048)
+                data = json.loads(raw_data.decode('utf-8'))
 
-            if winner == 2:
-                reward = 100.0
-                done = True
-                games_played += 1
-                print(f"[Game {games_played}] AI (Player 2) WON! (Epsilon: {agent.epsilon:.4f})")
-            elif winner == 1:
-                reward = -100.0
-                done = True
-                games_played += 1
-                print(f"[Game {games_played}] AI LOST to Player 1! (Epsilon: {agent.epsilon:.4f})")
-            elif winner == 'draw':
-                reward = 10.0
-                done = True
-                games_played += 1
-                print(f"[Game {games_played}] DRAW! (Epsilon: {agent.epsilon:.4f})")
-            else:
-                reward = 0.5  # Living reward for valid ongoing turn
+                grid = data['grid']
+                winner = data.get('winner')
+                game_over = data.get('game_over', False)
+                current_state = grid_to_vector(grid)
+                current_state_tensor = torch.tensor(current_state, dtype=torch.float32).unsqueeze(0)
 
-            # Experience Replay Training Step
-            if last_state is not None and last_action is not None and TRAINING:
-                agent.store_transition(last_state, last_action, reward, current_state, done)
-                agent.train_step()
+                # Compute Reward for AI (Player 2)
+                reward = 0.0
+                done = False
 
-            if done:
-                last_state = None
-                last_action = None
-                continue
+                if winner == 2:
+                    reward = 100.0
+                    done = True
+                    games_played += 1
+                    print(f"[Game {games_played}] AI (Player 2) WON! (Epsilon: {agent.epsilon:.4f})")
+                elif winner == 1:
+                    reward = -100.0
+                    done = True
+                    games_played += 1
+                    print(f"[Game {games_played}] AI LOST to Player 1! (Epsilon: {agent.epsilon:.4f})")
+                elif winner == 'draw':
+                    reward = 10.0
+                    done = True
+                    games_played += 1
+                    print(f"[Game {games_played}] DRAW! (Epsilon: {agent.epsilon:.4f})")
+                else:
+                    reward = 0.5
 
-            # Pick next action if it's AI's turn
-            valid_actions = agent.get_valid_actions(grid)
-            action = agent.get_action(current_state_tensor, valid_actions)
+                # Experience Replay Training Step
+                if last_state is not None and last_action is not None and TRAINING:
+                    agent.store_transition(last_state, last_action, reward, current_state, done)
+                    agent.train_step()
 
-            last_state = current_state
-            last_action = action
+                if done:
+                    last_state = None
+                    last_action = None
+                    if TRAINING:
+                        agent.save_weights()  # Auto-save at the end of every game!
+                    continue
 
-            # Send column selection back to Ruby
-            sock.sendto(str(action).encode('utf-8'), addr)
+                # Pick next action if it's AI's turn
+                valid_actions = agent.get_valid_actions(grid)
+                action = agent.get_action(current_state_tensor, valid_actions)
 
-        except KeyboardInterrupt:
-            print("\nStopping Connect 4 AI Server...")
-            if TRAINING:
-                torch.save(agent.model.state_dict(), "connect4_ai.pth")
-                print("Model weights saved to 'connect4_ai.pth'.")
-            break
-        except Exception as e:
-            print(f"Error: {e}")
+                last_state = current_state
+                last_action = action
 
+                # Send column selection back to Ruby
+                sock.sendto(str(action).encode('utf-8'), addr)
+
+            except Exception as e:
+                print(f"Loop Warning: {e}")
+
+    except KeyboardInterrupt:
+        print("\nStopping Connect 4 AI Server...")
+    finally:
+        if TRAINING:
+            agent.save_weights()
+            print("Model weights safely saved on shutdown.")
