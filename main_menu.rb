@@ -9,7 +9,7 @@ class Menu
   attr_reader :btn_pong, :btn_connect4
 
   def initialize
-    @title = Text.new("ARCADE MENU", x: 170, y: 80, size: 36, color: '#00ffff')
+    @title = Text.new("ARCADE MENU", x: 194, y: 80, size: 36, color: '#00ffff')
     @hint  = Text.new("Press ESC in any game to return to Menu", x: 170, y: 380, size: 16, color: 'gray')
 
     # Button 1: Pong
@@ -57,9 +57,11 @@ class Menu
     hide
     case game_type
     when :pong
+      @ai_pid = spawn(".venv/bin/python ai.py")
       $active_game = PongGame.new
       $current_state = :pong
     when :connect4
+      @ai_pid = spawn(".venv/bin/python connect4_ai.py")
       $active_game = Connect4Game.new
       $current_state = :connect4
     end
@@ -94,6 +96,7 @@ on :key_down do |event|
     if event.key == 'escape'
       $active_game.cleanup if $active_game
       $active_game = nil
+      Process.kill('TERM', @ai_pid) if @ai_pid
       menu.show
       $current_state = :menu
     else

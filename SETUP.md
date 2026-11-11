@@ -97,4 +97,5 @@ ruby main_menu.rb
 | `Error: Missing build tools: cmake` | `sudo apt install build-essential cmake git pkg-config` |
 | `cannot load such file -- ruby2d` | Re-run Steps 4–6 |
 | `rbenv: command not found` | Run `source ~/.bashrc` and try again |
+| `pw.conf: can't load config client.conf` | `sudo apt install -y pipewire pipewire-bin` (or `export SDL_AUDIODRIVER=dummy`) |
 
