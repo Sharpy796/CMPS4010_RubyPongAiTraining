@@ -57,11 +57,11 @@ class Menu
     hide
     case game_type
     when :pong
-      @ai_pid = spawn(".venv/bin/python ai.py")
+      $ai_pid = spawn(".venv/bin/python ai.py")
       $active_game = PongGame.new
       $current_state = :pong
     when :connect4
-      @ai_pid = spawn(".venv/bin/python connect4_ai.py")
+      $ai_pid = spawn(".venv/bin/python connect4_ai.py")
       $active_game = Connect4Game.new
       $current_state = :connect4
     end
@@ -96,7 +96,7 @@ on :key_down do |event|
     if event.key == 'escape'
       $active_game.cleanup if $active_game
       $active_game = nil
-      Process.kill('TERM', @ai_pid) if @ai_pid
+      Process.kill('TERM', $ai_pid) if $ai_pid
       menu.show
       $current_state = :menu
     else
@@ -112,5 +112,7 @@ on :key_up do |event|
     $active_game.handle_key_up(event.key) if $active_game
   end
 end
-
+at_exit do
+  Process.kill('TERM', $ai_pid) if $ai_pid
+end
 show
