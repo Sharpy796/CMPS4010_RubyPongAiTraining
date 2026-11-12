@@ -141,7 +141,8 @@ class PongGame
     end
 
     def remove
-      @obj.remove
+      @obj_p1.remove
+      @obj_p2.remove
     end
   end
 
