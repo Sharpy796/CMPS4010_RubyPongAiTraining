@@ -1,6 +1,1 @@
-- Config json so we can match constants between ruby and python files
-    - window dimensions
-    - paddle/ball sizes/positions
-    - etc
-
-- send epsilon and other data from py to rb
+Todone!
