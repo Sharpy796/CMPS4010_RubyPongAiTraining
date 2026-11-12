@@ -59,8 +59,8 @@ class PongGame
     end
 
     def reset
-      @x = Window.width / 2
-      @y = Window.height / 2
+      @x = (Window.width - SIZE) / 2
+      @y = (Window.height - SIZE) / 2
       @x_speed = [5, -5].sample
       @y_speed = rand(-4..4)
       @y_speed = 3 if @y_speed.zero?
@@ -111,7 +111,10 @@ class PongGame
     attr_reader :p1, :p2
 
     def initialize(color)
-      @obj = Text.new("foobar", x: Window.width / 2 - 30, y: 20, size: 30, color: color)
+      @obj_p1 = Text.new("foobar", x: Window.width / 2, y: 20, size: 30, color: color)
+      @obj_p1.x = Window.width / 2 + - @obj_p1.width - 10
+      @obj_p2 = Text.new("foobar", x: Window.width / 2, y: 20, size: 30, color: color)
+      @obj_p2.x = Window.width / 2 + 10
       reset
     end
 
@@ -132,7 +135,9 @@ class PongGame
     end
 
     def update
-      @obj.content = "#{@p1}   #{@p2}"
+      @obj_p1.content = "#{@p1}"
+      @obj_p1.x = Window.width / 2 + - @obj_p1.width - 10
+      @obj_p2.content = "#{@p2}"
     end
 
     def remove
@@ -146,7 +151,8 @@ class PongGame
       @EPSILON_END = 0.05
       @EPSILON_DECAY = 0.9999
       @effective_epsilon = @EPSILON_START
-      @obj = Text.new("ε", x: Window.width / 2 - 65, y: Window.height - 40, size: 30, color: color, font: '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf')
+      @obj = Text.new("ε: 0.00000", x: 100, y: Window.height - 40, size: 30, color: color, font: '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf')
+      @obj.x = (Window.width - @obj.width) / 2
       update
     end
 
