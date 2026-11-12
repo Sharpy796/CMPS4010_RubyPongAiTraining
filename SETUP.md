@@ -31,6 +31,7 @@ sudo apt install python3-venv
 python3 -m venv .venv
 source .venv/bin/activate
 pip install torch --index-url https://download.pytorch.org/whl/cpu
+pip install numpy
 ```
 
 ---
