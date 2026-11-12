@@ -5,16 +5,31 @@ import random
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from collections import deque
+import sys
+import signal
 import os
+from collections import deque
 # ---------------------------------------------------------
 # 1. Configuration & Hyperparameters
 # ---------------------------------------------------------
 HOST = '127.0.0.1'
 PORT = 65432
 
+def cleanup():
+    print("\nStopping PyTorch AI Server...")
+    # Save the neural network weights to a file
+    if TRAINING:
+        torch.save(agent.model.state_dict(), "pong_ai.pth") 
+        print("Model weights successfully saved to 'pong_ai.pth'.")
+
+def handle_term(signum, frame):
+    cleanup()
+    sys.exit(0)
+
+signal.signal(signal.SIGTERM, handle_term)
+
 # Change this if you want to demo an existing .pth file
-TRAINING = True
+TRAINING = True if len(sys.argv) > 1 and sys.argv[1] == "train" else False
 
 # Game Constants - For normalization
 WINDOW_WIDTH = 640.0
@@ -161,7 +176,7 @@ def extract_state_vector(data):
         float(data['ball_x_speed'])/BALL_SPEED,
         float(data['ball_y_speed'])/BALL_SPEED,
         float(data['paddle_y'])/WINDOW_HEIGHT,
-        bool(data['scored']) # unused if countdown is unused
+        bool(data['scored'])
     ]
 
 # ---------------------------------------------------------
@@ -238,7 +253,7 @@ while True:
                 reward *= 2
 
         # if not TRAINING:
-        print(f"Reward:\t{reward:7.2f}")
+        #     print(f"Reward:\t{reward:7.2f}")
 
         # Store previous experience and train step if previous frame exists
         if last_state is not None and TRAINING:
@@ -255,14 +270,5 @@ while True:
 
         # Send action response back to Ruby
         sock.sendto(chosen_action_str.encode('utf-8'), addr)
-
-    except KeyboardInterrupt:
-        print("\nStopping PyTorch AI Server...")
-        # Save the neural network weights to a file
-        # TODO: If you'd like to save this, you can uncomment these two lines
-        if TRAINING:
-            torch.save(agent.model.state_dict(), "pong_ai.pth") 
-            print("Model weights successfully saved to 'pong_ai.pth'.")
-        break
     except Exception as e:
         print(f"Error: {e}")

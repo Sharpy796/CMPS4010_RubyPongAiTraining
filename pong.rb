@@ -2,8 +2,6 @@ require 'ruby2d'
 require_relative 'socket_client' # Loads your socket client helper
 
 class PongGame
-  DEMOING = false
-
   # Nested Classes
   class Paddle
     HEIGHT = 100
@@ -177,11 +175,23 @@ class PongGame
   end
 
   # Main PongGame Controller Methods
-  def initialize
+  def initialize(game_mode)
     @game_color_1 = '#ff00ff'
     @game_color_2 = '#00ffff'
-    $p1_cpu = true
-    $p2_cpu = true
+    $p1_cpu = false
+    $p2_cpu = false
+    @DEMOING = true
+    case game_mode
+    when :two_player
+      # don't change anything
+    when :demo
+      $p1_cpu = false
+      $p2_cpu = true
+    when :train
+      $p1_cpu = true
+      $p2_cpu = true
+      @DEMOING = false
+    end
 
     # Initialize AI Socket Client
     @ai_client = AIClient.new
@@ -192,7 +202,7 @@ class PongGame
     @ball = Ball.new(@game_color_2)
     @score = Score.new(@game_color_2)
     @epsilon = Epsilon.new(@game_color_2)
-    @epsilon.hide if DEMOING
+    @epsilon.hide if @DEMOING
 
     @scored = false
     @ctrling = false
@@ -294,8 +304,8 @@ class PongGame
       $p2_cpu = !$p2_cpu
       @p2.direction = nil
     when 'e'
-      $DEMOING = !$DEMOING
-      if $DEMOING
+      @DEMOING = !@DEMOING
+      if @DEMOING
         @epsilon.hide
       else
         @epsilon.show
