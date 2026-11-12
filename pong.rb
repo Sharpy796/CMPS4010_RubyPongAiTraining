@@ -148,10 +148,7 @@ class PongGame
 
   class Epsilon
     def initialize(color)
-      @EPSILON_START = 1.00
-      @EPSILON_END = 0.05
-      @EPSILON_DECAY = 0.9999
-      @effective_epsilon = @EPSILON_START
+      @effective_epsilon = 0.00
       @obj = Text.new("ε: 0.00000", x: 100, y: Window.height - 40, size: 30, color: color, font: '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf')
       @obj.x = (Window.width - @obj.width) / 2
       update
@@ -162,15 +159,8 @@ class PongGame
       update
     end
 
-    def increment
-      if @effective_epsilon > @EPSILON_END
-        @effective_epsilon *= @EPSILON_DECAY
-      end
-      update
-    end
-
     def update
-      @obj.content = "ε: #{@effective_epsilon.round(5)}"
+      @obj.content = "ε: #{format('%.5f', @effective_epsilon)}"
     end
 
     def hide
@@ -193,6 +183,7 @@ class PongGame
     $p1_cpu = false
     $p2_cpu = false
     @DEMOING = true
+    @show_epsilon = false
     case game_mode
     when :two_player
       # don't change anything
@@ -203,6 +194,7 @@ class PongGame
       $p1_cpu = true
       $p2_cpu = true
       @DEMOING = false
+      @show_epsilon = true
     end
 
     # Initialize AI Socket Client
@@ -312,15 +304,15 @@ class PongGame
     when 'p'
       $p1_cpu = !$p1_cpu
       @p1.direction = nil
-    when 'o'
+    when '['
       $p2_cpu = !$p2_cpu
       @p2.direction = nil
     when 'e'
-      @DEMOING = !@DEMOING
-      if @DEMOING
-        @epsilon.hide
-      else
+      @show_epsilon = !@show_epsilon
+      if @show_epsilon
         @epsilon.show
+      else
+        @epsilon.hide
       end
     end
   end
