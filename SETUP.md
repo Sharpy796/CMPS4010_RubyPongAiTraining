@@ -27,7 +27,6 @@ Install all Python tools to use Pytorch with:
 sudo apt-get install libpython3-dev
 sudo apt-get install python3-venv
 sudo apt install python3-pip
-sudo apt install python3-venv
 python3 -m venv .venv
 source .venv/bin/activate
 pip install torch --index-url https://download.pytorch.org/whl/cpu
