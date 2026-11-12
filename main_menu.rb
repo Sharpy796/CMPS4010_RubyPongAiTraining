@@ -72,6 +72,10 @@ class Menu
     ) do
       start_game(:train)
     end
+
+    @btn_2player.x = (Window.width - @btn_2player.width) / 2
+    @btn_demo.x = (Window.width - @btn_demo.width) / 2
+    @btn_train.x = (Window.width - @btn_train.width) / 2
   end
 
   def hide
