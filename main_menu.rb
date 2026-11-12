@@ -161,7 +161,6 @@ update do
     menu.poll_loading
   when :pong
     $steps.times { $active_game.update } if $active_game
-    # $active_game.update if $active_game
   end
 end
 
@@ -193,6 +192,18 @@ on :key_down do |event|
       $ai_pid = nil
       menu.show
       $current_state = :menu
+    elsif event.key == '='
+      if $steps < 3
+        $steps += 1
+      else
+        $steps = 3
+      end
+    elsif event.key == '-'
+      if $steps > 1
+        $steps -= 1
+      else
+        $steps = 1
+      end
     else
       $active_game.handle_key_down(event.key) if $active_game
     end
