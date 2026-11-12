@@ -8,6 +8,7 @@ import torch.optim as optim
 import sys
 import signal
 import os
+import socket
 from collections import deque
 # ---------------------------------------------------------
 # 1. Configuration & Hyperparameters
@@ -21,6 +22,7 @@ def cleanup():
     if TRAINING:
         torch.save(agent.model.state_dict(), "pong_ai.pth") 
         print("Model weights successfully saved to 'pong_ai.pth'.")
+    print("Stopped PyTorchAI Server.")
 
 def handle_term(signum, frame):
     cleanup()
@@ -163,6 +165,9 @@ else:
         print("No saved weights found. Starting fresh training session.")
     else:
         print("No saved weights found. TRAINING DISABLED. Please enable training.")
+
+ready = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+ready.sendto(b"ready", ("127.0.0.1", 54321))
 
 # State Tracking Variables
 last_state = None
