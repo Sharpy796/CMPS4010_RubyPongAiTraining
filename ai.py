@@ -32,6 +32,8 @@ signal.signal(signal.SIGTERM, handle_term)
 
 # Change this if you want to demo an existing .pth file
 TRAINING = True if len(sys.argv) > 1 and sys.argv[1] == "train" else False
+# Prints values for debugging
+VERBOSE = False
 
 # Game Constants - For normalization
 WINDOW_WIDTH = 640.0
@@ -221,10 +223,12 @@ while True:
             data['ball_y'] + BALL_SIZE > data['paddle_y']):
             if not already_bounced:
                 reward += 20
-                print(f"BOUNCED!!{random.randint(0, 9)}")
+                if VERBOSE:
+                    print(f"BOUNCED!!{random.randint(0, 9)}")
                 already_bounced = True
             else:
-                print("Duplicate bounce...")
+                if VERBOSE:
+                    print("Duplicate bounce...")
                 reward += 1
         else:
             already_bounced = False
@@ -233,11 +237,13 @@ while True:
         if (data['scored']):
             if (not already_scored):
                 reward = -400
-                print("HEY YOU LOST")
+                if VERBOSE:
+                    print("HEY YOU LOST")
                 done = True
                 already_scored = True
             else:
-                print("Duplicate loss...")
+                if VERBOSE:
+                    print("Duplicate loss...")
         else:
             already_scored = False
             if (data['ball_y'] < data['paddle_y']): # above paddle
@@ -257,8 +263,8 @@ while True:
             if (data['ball_x'] + BALL_SIZE > WINDOW_WIDTH / 2 and data['ball_x_speed'] > 0):
                 reward *= 2
 
-        # if not TRAINING:
-        #     print(f"Reward:\t{reward:7.2f}")
+        if VERBOSE:
+            print(f"Reward:\t{reward:7.2f}")
 
         # Store previous experience and train step if previous frame exists
         if last_state is not None and TRAINING:
@@ -274,6 +280,7 @@ while True:
         last_action = action_idx
 
         # Send action response back to Ruby
-        sock.sendto(chosen_action_str.encode('utf-8'), addr)
+        reply = json.dumps({"action": chosen_action_str, "epsilon": agent.epsilon})
+        sock.sendto(reply.encode('utf-8'), addr)
     except Exception as e:
         print(f"Error: {e}")

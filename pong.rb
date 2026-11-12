@@ -157,6 +157,11 @@ class PongGame
       update
     end
 
+    def set(value)
+      @effective_epsilon = value
+      update
+    end
+
     def increment
       if @effective_epsilon > @EPSILON_END
         @effective_epsilon *= @EPSILON_DECAY
@@ -285,7 +290,7 @@ class PongGame
     @ball.draw
     @p1.draw
     @p2.draw
-    @epsilon.increment
+    @epsilon.set(@ai_client.epsilon) if @ai_client.epsilon and not @DEMOING
   end
 
   # Key down handlers

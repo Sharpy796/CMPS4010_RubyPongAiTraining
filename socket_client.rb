@@ -2,10 +2,13 @@ require 'socket'
 require 'json'
 
 class AIClient
+    attr_reader :epsilon
+
   def initialize(host = '127.0.0.1', port = 65432)
     @socket = UDPSocket.new
     @host = host
     @port = port
+    @epsilon = nil
   end
 
   # Sends game state hash to Python server
@@ -15,18 +18,26 @@ class AIClient
 
   # Non-blocking receive for current action
   def receive_action
-    action, _ = @socket.recvfrom_nonblock(1024)
-    action
+    parse_reply(@socket.recvfrom_nonblock(1024).first)
   rescue IO::EAGAINWaitReadable, Errno::ECONNREFUSED
-    nil # Returns nil if Python hasn't responded yet or is offline
+    nil
   end
 
   # Blocks until Python replies (or the timeout passes), for lockstep training
   def receive_action_blocking(timeout = 0.1)
     return nil unless IO.select([@socket], nil, nil, timeout)
-    action, _ = @socket.recvfrom(1024)
-    action
+    parse_reply(@socket.recvfrom(1024).first)
   rescue Errno::ECONNREFUSED
+    nil
+  end
+
+  private
+
+  def parse_reply(raw)
+    data = JSON.parse(raw)
+    @epsilon = data["epsilon"]
+    data["action"]
+  rescue JSON::ParserError
     nil
   end
 end
