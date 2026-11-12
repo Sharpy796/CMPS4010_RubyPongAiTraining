@@ -33,7 +33,7 @@ class Menu
   def initialize
     @title = Text.new("CPaoU PONG", x: 194, y: 80, size: 36, color: '#00ffff')
     @title.x = (Window.width - @title.width) / 2
-    @hint  = Text.new("Press ESC in any game to return to Menu", x: 170, y: 380, size: 16, color: 'gray')
+    @hint  = Text.new("Press ESC in a game to return to Menu", x: 170, y: 380, size: 16, color: 'gray')
     @hint.x = (Window.width - @hint.width) / 2
     @loading = Text.new("Loading...", x: 194, y: 80, size: 36, color: '#00ffff')
     @loading.x = (Window.width - @loading.width) / 2
