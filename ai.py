@@ -19,8 +19,8 @@ PORT = 65432
 def cleanup():
     print("\nStopping PyTorch AI Server...")
     # Save the neural network weights to a file
-    if TRAINING:
-        torch.save(agent.model.state_dict(), "pong_ai.pth") 
+    if TRAINING and 'agent' in globals():
+        torch.save(agent.model.state_dict(), "pong_ai.pth")
         print("Model weights successfully saved to 'pong_ai.pth'.")
     print("Stopped PyTorchAI Server.")
 
