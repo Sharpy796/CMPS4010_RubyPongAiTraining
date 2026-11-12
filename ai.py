@@ -157,8 +157,8 @@ if os.path.exists("pong_ai.pth"):
     agent.model.eval() # Set to evaluation mode if desired
     print("Loaded existing model weights from 'pong_ai.pth'!")
     if TRAINING:
-        agent.epsilon = EPSILON_END
-        print(f"Epsilon automatically set to {EPSILON_END} to make up for lack of saved epsilon value.") # TODO: Save epsilon on training end
+        agent.epsilon = 0.50
+        print(f"Epsilon automatically set to 0.50 to make up for lack of saved epsilon value.")
     else:
         agent.epsilon = 0.0
         print("Epsilon automatically set to 0.0 to allow for demo of existing model weights.")
@@ -232,8 +232,7 @@ while True:
                 reward += 1
         else:
             already_bounced = False
-
-        # TODO: Bad ai, why are you dodging the ball, stop dodging the ball PLEASEEEEE
+        
         if (data['scored']):
             if (not already_scored):
                 reward = -400
