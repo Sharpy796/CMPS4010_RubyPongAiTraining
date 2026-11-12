@@ -5,16 +5,35 @@ import random
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from collections import deque
+import sys
+import signal
 import os
+import socket
+from collections import deque
 # ---------------------------------------------------------
 # 1. Configuration & Hyperparameters
 # ---------------------------------------------------------
 HOST = '127.0.0.1'
 PORT = 65432
 
+def cleanup():
+    print("\nStopping PyTorch AI Server...")
+    # Save the neural network weights to a file
+    if TRAINING and 'agent' in globals():
+        torch.save(agent.model.state_dict(), "pong_ai.pth")
+        print("Model weights successfully saved to 'pong_ai.pth'.")
+    print("Stopped PyTorchAI Server.")
+
+def handle_term(signum, frame):
+    cleanup()
+    sys.exit(0)
+
+signal.signal(signal.SIGTERM, handle_term)
+
 # Change this if you want to demo an existing .pth file
-TRAINING = True
+TRAINING = True if len(sys.argv) > 1 and sys.argv[1] == "train" else False
+# Prints values for debugging
+VERBOSE = False
 
 # Game Constants - For normalization
 WINDOW_WIDTH = 640.0
@@ -138,8 +157,8 @@ if os.path.exists("pong_ai.pth"):
     agent.model.eval() # Set to evaluation mode if desired
     print("Loaded existing model weights from 'pong_ai.pth'!")
     if TRAINING:
-        agent.epsilon = EPSILON_END
-        print(f"Epsilon automatically set to {EPSILON_END} to make up for lack of saved epsilon value.") # TODO: Save epsilon on training end
+        agent.epsilon = 0.50
+        print(f"Epsilon automatically set to 0.50 to make up for lack of saved epsilon value.")
     else:
         agent.epsilon = 0.0
         print("Epsilon automatically set to 0.0 to allow for demo of existing model weights.")
@@ -148,6 +167,9 @@ else:
         print("No saved weights found. Starting fresh training session.")
     else:
         print("No saved weights found. TRAINING DISABLED. Please enable training.")
+
+ready = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+ready.sendto(b"ready", ("127.0.0.1", 54321))
 
 # State Tracking Variables
 last_state = None
@@ -161,7 +183,7 @@ def extract_state_vector(data):
         float(data['ball_x_speed'])/BALL_SPEED,
         float(data['ball_y_speed'])/BALL_SPEED,
         float(data['paddle_y'])/WINDOW_HEIGHT,
-        bool(data['scored']) # unused if countdown is unused
+        bool(data['scored'])
     ]
 
 # ---------------------------------------------------------
@@ -201,23 +223,26 @@ while True:
             data['ball_y'] + BALL_SIZE > data['paddle_y']):
             if not already_bounced:
                 reward += 20
-                print(f"BOUNCED!!{random.randint(0, 9)}")
+                if VERBOSE:
+                    print(f"BOUNCED!!{random.randint(0, 9)}")
                 already_bounced = True
             else:
-                print("Duplicate bounce...")
+                if VERBOSE:
+                    print("Duplicate bounce...")
                 reward += 1
         else:
             already_bounced = False
-
-        # TODO: Bad ai, why are you dodging the ball, stop dodging the ball PLEASEEEEE
+        
         if (data['scored']):
             if (not already_scored):
                 reward = -400
-                print("HEY YOU LOST")
+                if VERBOSE:
+                    print("HEY YOU LOST")
                 done = True
                 already_scored = True
             else:
-                print("Duplicate loss...")
+                if VERBOSE:
+                    print("Duplicate loss...")
         else:
             already_scored = False
             if (data['ball_y'] < data['paddle_y']): # above paddle
@@ -237,8 +262,8 @@ while True:
             if (data['ball_x'] + BALL_SIZE > WINDOW_WIDTH / 2 and data['ball_x_speed'] > 0):
                 reward *= 2
 
-        # if not TRAINING:
-        print(f"Reward:\t{reward:7.2f}")
+        if VERBOSE:
+            print(f"Reward:\t{reward:7.2f}")
 
         # Store previous experience and train step if previous frame exists
         if last_state is not None and TRAINING:
@@ -254,15 +279,7 @@ while True:
         last_action = action_idx
 
         # Send action response back to Ruby
-        sock.sendto(chosen_action_str.encode('utf-8'), addr)
-
-    except KeyboardInterrupt:
-        print("\nStopping PyTorch AI Server...")
-        # Save the neural network weights to a file
-        # TODO: If you'd like to save this, you can uncomment these two lines
-        if TRAINING:
-            torch.save(agent.model.state_dict(), "pong_ai.pth") 
-            print("Model weights successfully saved to 'pong_ai.pth'.")
-        break
+        reply = json.dumps({"action": chosen_action_str, "epsilon": agent.epsilon})
+        sock.sendto(reply.encode('utf-8'), addr)
     except Exception as e:
         print(f"Error: {e}")
