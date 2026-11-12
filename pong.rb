@@ -229,7 +229,7 @@ class PongGame
     })
 
     # Read decision from Python Server and steer p2
-    if ($p2_cpu && action = @ai_client.receive_action)
+    if ($p2_cpu && action = (@DEMOING ? @ai_client.receive_action : @ai_client.receive_action_blocking))
       case action
       when 'up'   then @p2.direction = :up
       when 'down' then @p2.direction = :down

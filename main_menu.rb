@@ -144,6 +144,7 @@ class Menu
       $ai_pid = spawn(".venv/bin/python ai.py train")
       begin_loading
     end
+    $steps = ($current_mode == :train) ? 3 : 1
   end
 end
 
@@ -159,7 +160,8 @@ update do
   when :loading
     menu.poll_loading
   when :pong
-    $active_game.update if $active_game
+    $steps.times { $active_game.update } if $active_game
+    # $active_game.update if $active_game
   end
 end
 

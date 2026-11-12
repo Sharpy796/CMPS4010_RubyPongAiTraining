@@ -20,4 +20,13 @@ class AIClient
   rescue IO::EAGAINWaitReadable, Errno::ECONNREFUSED
     nil # Returns nil if Python hasn't responded yet or is offline
   end
+
+  # Blocks until Python replies (or the timeout passes), for lockstep training
+  def receive_action_blocking(timeout = 0.1)
+    return nil unless IO.select([@socket], nil, nil, timeout)
+    action, _ = @socket.recvfrom(1024)
+    action
+  rescue Errno::ECONNREFUSED
+    nil
+  end
 end
