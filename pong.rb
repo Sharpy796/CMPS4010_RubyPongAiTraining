@@ -101,9 +101,8 @@ class PongGame
       else
         @x_speed = -8
       end
-      # Change y speed based on distance from center of paddle
-      diff = @y - paddle.y + SIZE / 2
-      @y_speed = (diff - (Paddle::HEIGHT / 2)).to_f / (Paddle::HEIGHT).to_f * 2 * 6
+      @y_speed = (2 * (@y - paddle.y + (SIZE - Paddle::HEIGHT) / 2.0).to_f / (Paddle::HEIGHT).to_f) * 6
+      puts "y_speed: #{@y_speed}"
     end
   end
 
