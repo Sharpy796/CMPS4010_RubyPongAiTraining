@@ -102,7 +102,6 @@ class PongGame
         @x_speed = -8
       end
       @y_speed = (2 * (@y - paddle.y + (SIZE - Paddle::HEIGHT) / 2.0).to_f / (Paddle::HEIGHT).to_f) * 6
-      puts "y_speed: #{@y_speed}"
     end
   end
 
