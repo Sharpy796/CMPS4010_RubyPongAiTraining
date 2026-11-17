@@ -15,13 +15,14 @@ from collections import deque
 # ---------------------------------------------------------
 HOST = '127.0.0.1'
 PORT = 65432
+OTHER_PORT = 54321 # what even is the difference here
 
 def cleanup():
     print("\nStopping PyTorch AI Server...")
     # Save the neural network weights to a file
     if TRAINING and 'agent' in globals():
-        torch.save(agent.model.state_dict(), "pong_ai.pth")
-        print("Model weights successfully saved to 'pong_ai.pth'.")
+        torch.save(agent.model.state_dict(), PTH)
+        print(f"Model weights successfully saved to '{PTH}'.")
     print("Stopped PyTorchAI Server.")
 
 def handle_term(signum, frame):
@@ -31,7 +32,12 @@ def handle_term(signum, frame):
 signal.signal(signal.SIGTERM, handle_term)
 
 # Change this if you want to demo an existing .pth file
-TRAINING = True if len(sys.argv) > 1 and sys.argv[1] == "train" else False
+TRAINING = "train" in sys.argv
+PLAYER_1 = "player1" in sys.argv
+if PLAYER_1:
+    PORT = 43210
+    OTHER_PORT = 54322
+PTH = f"pong_ai_{1 if PLAYER_1 else 2}.pth"
 # Prints values for debugging
 VERBOSE = False
 
@@ -40,7 +46,6 @@ WINDOW_WIDTH = 640.0
 WINDOW_HEIGHT = 480.0
 PADDLE_HEIGHT = 100.0
 PADDLE_WIDTH = 20.0
-PADDLE_RIGHT_X = 580.0
 BALL_SIZE = 15.0
 BALL_SPEED = 8.0
 H = (PADDLE_HEIGHT - BALL_SIZE) / 2
@@ -49,10 +54,10 @@ H = (PADDLE_HEIGHT - BALL_SIZE) / 2
 GAMMA = 0.99            # Discount factor for future rewards
 LR = 0.001              # Learning rate
 MEMORY_SIZE = 10000     # Replay buffer capacity
-BATCH_SIZE = 128 # 32         # Batch size for training
+BATCH_SIZE = 128        # Batch size for training
 EPSILON_START = 1.00    # Starting randomness (100% random moves initially)
 EPSILON_END = 0.05      # Minimum randomness (5% random moves when trained)
-EPSILON_DECAY = 0.9999 #0.9995  # Decay rate per frame -- 0.99995 is 16.4 minutes, 0.9999 is 8.3 minutes, 0.9995 is 1.6 minutes
+EPSILON_DECAY = 0.9999  # Decay rate per frame -- 0.99995 is 16.4 minutes, 0.9999 is 8.3 minutes, 0.9995 is 1.6 minutes
 
 # Select difficulty: 'easy', 'medium', or 'hard'
 # NOTE: DO NOT train on anything other than 'hard', other difficulties will result in noisier training
@@ -152,10 +157,10 @@ print(f"PyTorch AI Server listening on {HOST}:{PORT}...")
 agent = DQNAgent()
 
 # Load saved weights if they exist
-if os.path.exists("pong_ai.pth"):
-    agent.model.load_state_dict(torch.load("pong_ai.pth"))
+if os.path.exists(PTH):
+    agent.model.load_state_dict(torch.load(PTH))
     agent.model.eval() # Set to evaluation mode if desired
-    print("Loaded existing model weights from 'pong_ai.pth'!")
+    print(f"Loaded existing model weights from '{PTH}'!")
     if TRAINING:
         agent.epsilon = 0.50
         print(f"Epsilon automatically set to 0.50 to make up for lack of saved epsilon value.")
@@ -169,7 +174,7 @@ else:
         print("No saved weights found. TRAINING DISABLED. Please enable training.")
 
 ready = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-ready.sendto(b"ready", ("127.0.0.1", 54321))
+ready.sendto(b"ready", ("127.0.0.1", OTHER_PORT))
 
 # State Tracking Variables
 last_state = None
@@ -217,8 +222,8 @@ while True:
         
 
         # successful bounce!
-        if (data['ball_x'] < 580 + PADDLE_WIDTH and
-            data['ball_x'] + BALL_SIZE > 580 and
+        if (data['ball_x'] < (580 if PLAYER_1 else 40) + PADDLE_WIDTH and
+            data['ball_x'] + BALL_SIZE > (580 if PLAYER_1 else 40) and
             data['ball_y'] < data['paddle_y'] + 100 and
             data['ball_y'] + BALL_SIZE > data['paddle_y']):
             if not already_bounced:
@@ -259,7 +264,8 @@ while True:
                 # reward += 5 - min(int(abs(data['ball_y'] - data['paddle_y'] - H) / H * 5), 4)
                 reward += 3 - min(int(abs(data['ball_y'] - data['paddle_y'] - H) / H * 3), 2)
             
-            if (data['ball_x'] + BALL_SIZE > WINDOW_WIDTH / 2 and data['ball_x_speed'] > 0):
+            if ((data['ball_x'] < WINDOW_WIDTH / 2 and data['ball_x_speed'] < 0 and PLAYER_1) or
+                (data['ball_x'] + BALL_SIZE > WINDOW_WIDTH / 2 and data['ball_x_speed'] > 0)):
                 reward *= 2
 
         if VERBOSE:

@@ -179,7 +179,8 @@ class PongGame
     @game_color_1 = '#ff00ff'
     @game_color_2 = '#00ffff'
     $p1_cpu = false
-    $p2_cpu = false
+    $p1_ai = false
+    $p2_ai = false
     @DEMOING = true
     @show_epsilon = false
     case game_mode
@@ -187,16 +188,33 @@ class PongGame
       # don't change anything
     when :demo
       $p1_cpu = false
-      $p2_cpu = true
+      $p1_ai = false
+      $p2_ai = true
+    when :demo_2ai
+      $p1_cpu = false
+      $p1_ai = true
+      $p2_ai = true
     when :train
       $p1_cpu = true
-      $p2_cpu = true
+      $p1_ai = false
+      $p2_ai = true
+      @DEMOING = false
+      @show_epsilon = true
+    when :train_2ai
+      $p1_cpu = false
+      $p1_ai = true
+      $p2_ai = true
       @DEMOING = false
       @show_epsilon = true
     end
 
     # Initialize AI Socket Client
-    @ai_client = AIClient.new
+    if $p1_ai
+      @ai_client_1 = AIClient.new('127.0.0.1', 43210)
+    end
+    if $p2_ai
+      @ai_client_2 = AIClient.new
+    end
 
     # Game objects
     @p1 = Paddle.new(:left, @game_color_1)
@@ -207,6 +225,8 @@ class PongGame
     @epsilon.hide if @DEMOING
 
     @scored = false
+    @scored_p1 = false
+    @scored_p2 = false
     @ctrling = false
   end
 
@@ -214,29 +234,36 @@ class PongGame
   def update
     # --- AI Communication Block ---
     # Send state to Python PyTorch Server
-    @ai_client.send_state({
-      ball_x: @ball.x,
-      ball_y: @ball.y,
-      ball_x_speed: @ball.x_speed,
-      ball_y_speed: @ball.y_speed,
-      paddle_y: @p2.y,
-      scored: @scored
-    })
+    if $p1_ai
+      @ai_client_1.send_state({
+        ball_x: @ball.x,
+        ball_y: @ball.y,
+        ball_x_speed: @ball.x_speed,
+        ball_y_speed: @ball.y_speed,
+        paddle_y: @p1.y,
+        scored: @scored_p2
+      })
+    end
+    if $p2_ai
+      @ai_client_2.send_state({
+        ball_x: @ball.x,
+        ball_y: @ball.y,
+        ball_x_speed: @ball.x_speed,
+        ball_y_speed: @ball.y_speed,
+        paddle_y: @p2.y,
+        scored: @scored_p1
+      })
+    end
 
     # Read decision from Python Server and steer p2
-    if ($p2_cpu && action = (@DEMOING ? @ai_client.receive_action : @ai_client.receive_action_blocking))
-      case action
-      when 'up'   then @p2.direction = :up
-      when 'down' then @p2.direction = :down
-      else             @p2.direction = nil
+    if ($p1_ai && action1 = (@DEMOING ? @ai_client_1.receive_action : @ai_client_1.receive_action_blocking))
+      case action1
+      when 'up'   then @p1.direction = :up
+      when 'down' then @p1.direction = :down
+      else             @p1.direction = nil
       end
-    end
-    # ------------------------------
-
-    # Move paddles
-    if $p1_cpu
+    elsif $p1_cpu
       center = @p1.y + Paddle::HEIGHT / 2
-
       if @ball.y < center - 10 - Ball::SIZE
         @p1.direction = :up
       elsif @ball.y > center + 10 + Ball::SIZE
@@ -246,11 +273,23 @@ class PongGame
       end
     end
 
+    if ($p2_ai && action2 = (@DEMOING ? @ai_client_2.receive_action : @ai_client_2.receive_action_blocking))
+      case action2
+      when 'up'   then @p2.direction = :up
+      when 'down' then @p2.direction = :down
+      else             @p2.direction = nil
+      end
+    end
+    # ------------------------------
+
+    # Move paddles
     @p1.move
     @p2.move
 
-    if @scored
+    if @scored or @scored_p1 or @scored_p2
       @scored = false
+      @scored_p1 = false
+      @scored_p2 = false
     else
       # Move ball
       @ball.move
@@ -268,10 +307,11 @@ class PongGame
       # Scoring check
       if @ball.x <= 0
         @score.p2_win
+        @scored_p2 = true
         @ball.reset
       elsif @ball.x >= Window.width - Ball::SIZE
         @score.p1_win
-        @scored = true
+        @scored_p1 = true
         @ball.reset
       end
     end
@@ -280,7 +320,7 @@ class PongGame
     @ball.draw
     @p1.draw
     @p2.draw
-    @epsilon.set(@ai_client.epsilon) if @ai_client.epsilon and not @DEMOING
+    @epsilon.set(@ai_client_2.epsilon) if @ai_client_2.epsilon and not @DEMOING
   end
 
   # Key down handlers
@@ -303,7 +343,7 @@ class PongGame
       $p1_cpu = !$p1_cpu
       @p1.direction = nil
     when '['
-      $p2_cpu = !$p2_cpu
+      $p2_ai = !$p2_ai
       @p2.direction = nil
     when 'e'
       @show_epsilon = !@show_epsilon
