@@ -8,7 +8,7 @@ class AIClient
     @socket = UDPSocket.new
     @host = host
     @port = port
-    @epsilon = nil
+    @epsilon = 0.0
   end
 
   # Sends game state hash to Python server

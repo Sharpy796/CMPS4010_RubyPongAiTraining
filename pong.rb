@@ -58,10 +58,10 @@ class PongGame
       @obj = Square.new(x: @x, y: @y, size: SIZE, color: color)
     end
 
-    def reset
+    def reset(side=:right)
       @x = (Window.width - SIZE) / 2
       @y = (Window.height - SIZE) / 2
-      @x_speed = [5, -5].sample
+      @x_speed = 5 * ((side == :right) ? 1 : -1)
       @y_speed = rand(-4..4)
       @y_speed = 3 if @y_speed.zero?
     end
@@ -178,43 +178,40 @@ class PongGame
   def initialize(game_mode)
     @game_color_1 = '#ff00ff'
     @game_color_2 = '#00ffff'
-    $p1_cpu = false
-    $p1_ai = false
-    $p2_ai = false
+    $p1_controller = :player
+    $p2_controller = :player
     @DEMOING = true
     @show_epsilon = false
     case game_mode
     when :two_player
       # don't change anything
     when :demo
-      $p1_cpu = false
-      $p1_ai = false
-      $p2_ai = true
+      $p1_controller = :player
+      $p2_controller = :ai
     when :demo_2ai
-      $p1_cpu = false
-      $p1_ai = true
+      $p1_controller = :ai
+      $p2_controller = :ai
       $p2_ai = true
     when :train
-      $p1_cpu = true
-      $p1_ai = false
-      $p2_ai = true
+      $p1_controller = :cpu
+      $p2_controller = :ai
+      @DEMOING = false
+      @show_epsilon = true
+    when :train_p1
+      $p1_controller = :ai
+      $p2_controller = :cpu
       @DEMOING = false
       @show_epsilon = true
     when :train_2ai
-      $p1_cpu = false
-      $p1_ai = true
-      $p2_ai = true
+      $p1_controller = :ai
+      $p2_controller = :ai
       @DEMOING = false
       @show_epsilon = true
     end
 
     # Initialize AI Socket Client
-    if $p1_ai
-      @ai_client_1 = AIClient.new('127.0.0.1', 43210)
-    end
-    if $p2_ai
-      @ai_client_2 = AIClient.new
-    end
+    @ai_client_1 = AIClient.new('127.0.0.1', 43210)
+    @ai_client_2 = AIClient.new
 
     # Game objects
     @p1 = Paddle.new(:left, @game_color_1)
@@ -234,35 +231,31 @@ class PongGame
   def update
     # --- AI Communication Block ---
     # Send state to Python PyTorch Server
-    if $p1_ai
+    if $p1_controller == :ai
       @ai_client_1.send_state({
         ball_x: @ball.x,
         ball_y: @ball.y,
         ball_x_speed: @ball.x_speed,
         ball_y_speed: @ball.y_speed,
         paddle_y: @p1.y,
-        scored: @scored_p2
+        failed: @scored_p2,
+        scored: @scored_p1
       })
     end
-    if $p2_ai
+    if $p2_controller == :ai
       @ai_client_2.send_state({
         ball_x: @ball.x,
         ball_y: @ball.y,
         ball_x_speed: @ball.x_speed,
         ball_y_speed: @ball.y_speed,
         paddle_y: @p2.y,
-        scored: @scored_p1
+        failed: @scored_p1,
+        scored: @scored_p2
       })
     end
 
     # Read decision from Python Server and steer p2
-    if ($p1_ai && action1 = (@DEMOING ? @ai_client_1.receive_action : @ai_client_1.receive_action_blocking))
-      case action1
-      when 'up'   then @p1.direction = :up
-      when 'down' then @p1.direction = :down
-      else             @p1.direction = nil
-      end
-    elsif $p1_cpu
+    if $p1_controller == :cpu
       center = @p1.y + Paddle::HEIGHT / 2
       if @ball.y < center - 10 - Ball::SIZE
         @p1.direction = :up
@@ -271,9 +264,24 @@ class PongGame
       else
         @p1.direction = nil
       end
+    elsif ($p1_controller == :ai && action1 = (@DEMOING ? @ai_client_1.receive_action : @ai_client_1.receive_action_blocking))
+      case action1
+      when 'up'   then @p1.direction = :up
+      when 'down' then @p1.direction = :down
+      else             @p1.direction = nil
+      end
     end
 
-    if ($p2_ai && action2 = (@DEMOING ? @ai_client_2.receive_action : @ai_client_2.receive_action_blocking))
+    if $p2_controller == :cpu
+      center = @p2.y + Paddle::HEIGHT / 2
+      if @ball.y < center - 10 - Ball::SIZE
+        @p2.direction = :up
+      elsif @ball.y > center + 10 + Ball::SIZE
+        @p2.direction = :down
+      else
+        @p2.direction = nil
+      end
+    elsif ($p2_controller == :ai && action2 = (@DEMOING ? @ai_client_2.receive_action : @ai_client_2.receive_action_blocking))
       case action2
       when 'up'   then @p2.direction = :up
       when 'down' then @p2.direction = :down
@@ -296,9 +304,12 @@ class PongGame
       
       # Paddle collisions
       if @ball.collides_with?(@p1)
+        if $p1_controller == :ai and $p2_controller == :cpu
+          @score.p1_win # count the number of times the ai bounced the ball
+        end
         @ball.bounce_x(@p1)
       elsif @ball.collides_with?(@p2)
-        if $p1_cpu
+        if $p1_controller == :cpu and $p2_controller == :ai
           @score.p2_win # count the number of times the ai bounced the ball
         end
         @ball.bounce_x(@p2)
@@ -308,11 +319,11 @@ class PongGame
       if @ball.x <= 0
         @score.p2_win
         @scored_p2 = true
-        @ball.reset
+        @ball.reset(:right)
       elsif @ball.x >= Window.width - Ball::SIZE
         @score.p1_win
         @scored_p1 = true
-        @ball.reset
+        @ball.reset(:left)
       end
     end
 
@@ -320,7 +331,7 @@ class PongGame
     @ball.draw
     @p1.draw
     @p2.draw
-    @epsilon.set(@ai_client_2.epsilon) if @ai_client_2.epsilon and not @DEMOING
+    @epsilon.set([@ai_client_2.epsilon, @ai_client_1.epsilon].max) if (@ai_client_2.epsilon or @ai_client_1.epsilon) and not @DEMOING
   end
 
   # Key down handlers
@@ -340,10 +351,18 @@ class PongGame
 
     # Other keybinds
     when 'p'
-      $p1_cpu = !$p1_cpu
+      if $p1_controller == :cpu
+        $p1_controller = :player
+      elsif $p1_controller == :player
+        $p1_controller = :cpu
+      end
       @p1.direction = nil
     when '['
-      $p2_ai = !$p2_ai
+      if $p2_controller == :cpu
+        $p2_controller = :player
+      elsif $p2_controller == :player
+        $p2_controller = :cpu
+      end
       @p2.direction = nil
     when 'e'
       @show_epsilon = !@show_epsilon

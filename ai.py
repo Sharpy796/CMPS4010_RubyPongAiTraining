@@ -65,6 +65,7 @@ DIFFICULTY = 'hard'
 
 # Reward flags
 already_bounced = False
+already_failed = False
 already_scored = False
 
 # ---------------------------------------------------------
@@ -73,8 +74,8 @@ already_scored = False
 class PongDQN(nn.Module):
     def __init__(self):
         super(PongDQN, self).__init__()
-        # Input state vector size = 6: [ball_x, ball_y, ball_x_speed, ball_y_speed, paddle_y, scored]
-        self.fc1 = nn.Linear(6, 64)
+        # Input state vector size = 7: [ball_x, ball_y, ball_x_speed, ball_y_speed, paddle_y, failed, scored]
+        self.fc1 = nn.Linear(7, 64)
         self.fc2 = nn.Linear(64, 64)
         self.fc3 = nn.Linear(64, 3) # Output Q-values for 3 actions: [0: 'none', 1: 'up', 2: 'down']
 
@@ -188,6 +189,7 @@ def extract_state_vector(data):
         float(data['ball_x_speed'])/BALL_SPEED,
         float(data['ball_y_speed'])/BALL_SPEED,
         float(data['paddle_y'])/WINDOW_HEIGHT,
+        bool(data['failed']),
         bool(data['scored'])
     ]
 
@@ -210,20 +212,21 @@ while True:
         # rewards for:
         # - moving toward the ball
         # - bouncing the ball (!!!!)
+        # - scoring (!!!!)
 
         # penalties for:
         # - moving away from the ball
-        # - letting the ball get away ('scored')
+        # - letting the ball get away ('failed')
 
         # neutral for:
-        # - if the countdown is running (already_scored)
+        # - if the countdown is running (already_failed/already_scored)
 
         # Rewards read data directly, they don't need normalization.
         
 
         # successful bounce!
-        if (data['ball_x'] < (580 if PLAYER_1 else 40) + PADDLE_WIDTH and
-            data['ball_x'] + BALL_SIZE > (580 if PLAYER_1 else 40) and
+        if (data['ball_x'] < (40 if PLAYER_1 else 580) + PADDLE_WIDTH and
+            data['ball_x'] + BALL_SIZE > (40 if PLAYER_1 else 580) and
             data['ball_y'] < data['paddle_y'] + 100 and
             data['ball_y'] + BALL_SIZE > data['paddle_y']):
             if not already_bounced:
@@ -238,17 +241,28 @@ while True:
         else:
             already_bounced = False
         
-        if (data['scored']):
-            if (not already_scored):
+        if (data['failed']):
+            if (not already_failed):
                 reward = -400
                 if VERBOSE:
                     print("HEY YOU LOST")
                 done = True
-                already_scored = True
+                already_failed = True
             else:
                 if VERBOSE:
                     print("Duplicate loss...")
+        elif (data['scored'] and agent.epsilon <= 0.5):
+            if (not already_scored):
+                reward = +30
+                if VERBOSE:
+                    print("HEY YOU WON")
+                # done = True
+                already_scored = True
+            else:
+                if VERBOSE:
+                    print("Duplicate win...")
         else:
+            already_failed = False
             already_scored = False
             if (data['ball_y'] < data['paddle_y']): # above paddle
                 if (last_action == 1): # moving up
@@ -265,7 +279,7 @@ while True:
                 reward += 3 - min(int(abs(data['ball_y'] - data['paddle_y'] - H) / H * 3), 2)
             
             if ((data['ball_x'] < WINDOW_WIDTH / 2 and data['ball_x_speed'] < 0 and PLAYER_1) or
-                (data['ball_x'] + BALL_SIZE > WINDOW_WIDTH / 2 and data['ball_x_speed'] > 0)):
+                (data['ball_x'] + BALL_SIZE > WINDOW_WIDTH / 2 and data['ball_x_speed'] > 0 and not PLAYER_1)):
                 reward *= 2
 
         if VERBOSE:

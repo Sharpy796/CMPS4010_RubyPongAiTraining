@@ -29,7 +29,7 @@ end
 
 # --- MENU CLASS ---
 class Menu
-  attr_reader :btn_2player, :btn_demo, :btn_train
+  attr_reader :btn_2player, :btn_demo, :btn_demo_2ai, :btn_train, :btn_train_p1, :btn_train_2ai
 
   def initialize
     @title = Text.new("CPaoU PONG", x: 194, y: 80, size: 36, color: '#00ffff')
@@ -77,7 +77,7 @@ class Menu
     @btn_train = Button.new(
       x: 225, y: 160+45*3,
       width: 200, height: 35,
-      label: '0-Player (Train AI)',
+      label: 'Train P2 AI',
       color: '#FF00FF',
       hover_color: '#444444',
       pressed_color: '#ff9800'
@@ -85,42 +85,52 @@ class Menu
       start_game(:train)
     end
 
+    @btn_train_p1 = Button.new(
+      x: 225, y: 160+45*3,
+      width: 200, height: 35,
+      label: 'Train P1 AI',
+      color: '#FF00FF',
+      hover_color: '#444444',
+      pressed_color: '#ff9800'
+    ) do
+      start_game(:train_p1)
+    end
+
     @btn_train_2ai = Button.new(
       x: 225, y: 160+45*4,
       width: 200, height: 35,
-      label: '0-Player (Train 2 AI\'s)',
+      label: 'Train Both AI\'s',
       color: '#FF00FF',
       hover_color: '#444444',
       pressed_color: '#ff9800'
     ) do
       start_game(:train_2ai)
     end 
-
-    @btn_2player.x = (Window.width - @btn_2player.width) / 2
-    @btn_demo.x = (Window.width - @btn_demo.width) / 2
-    @btn_demo_2ai.x = (Window.width - @btn_demo.width) / 2
-    @btn_train.x = (Window.width - @btn_train.width) / 2
-    @btn_train_2ai.x = (Window.width - @btn_train.width) / 2
+    
+    @btn_list = [@btn_2player,@btn_demo,@btn_demo_2ai,@btn_train,@btn_train_p1,@btn_train_2ai]
+    i = 0
+    for btn in @btn_list do
+      btn.y = 160+45*i
+      btn.x = (Window.width - 200) / 2
+      i += 1
+    end
+    @hint.y = 160+45*i+15
   end
 
   def hide
     @title.remove
     @hint.remove
-    @btn_2player.remove
-    @btn_demo.remove
-    @btn_demo_2ai.remove
-    @btn_train.remove
-    @btn_train_2ai.remove
+    for btn in @btn_list do
+      btn.remove
+    end
   end
 
   def show
     @title.add
     @hint.add
-    @btn_2player.add
-    @btn_demo.add
-    @btn_demo_2ai.add
-    @btn_train.add
-    @btn_train_2ai.add
+    for btn in @btn_list do
+      btn.add
+    end
   end
 
   # Called once per frame while $current_state == :loading.
@@ -174,14 +184,17 @@ class Menu
       $ai_pid_2 = spawn(".venv/bin/python ai.py player1")
       begin_loading(AI_READY_PORT_2) # TODO: Wait for player 1 AI to connect
     when :train
-      $ai_pid_1 = spawn(".venv/bin/python ai.py train")
+      $ai_pid_2 = spawn(".venv/bin/python ai.py train")
       begin_loading(AI_READY_PORT_2)
+    when :train_p1
+      $ai_pid_1 = spawn(".venv/bin/python ai.py train player1")
+      begin_loading(AI_READY_PORT_1)
     when :train_2ai
       $ai_pid_1 = spawn(".venv/bin/python ai.py train")
       $ai_pid_2 = spawn(".venv/bin/python ai.py train player1")
       begin_loading(AI_READY_PORT_2) # TODO: Wait for player 1 AI to connect
     end
-    $steps = ($current_mode == :train) ? 3 : 1
+    $steps = ($current_mode == :train or $current_mode == :train_p1) ? 3 : 1
   end
 end
 
@@ -212,7 +225,8 @@ on :key_down do |event|
     when '2' then menu.send(:start_game, :demo)
     when '3' then menu.send(:start_game, :demo_2ai)
     when '4' then menu.send(:start_game, :train)
-    when '5' then menu.send(:start_game, :train_2ai)
+    when '5' then menu.send(:start_game, :train_p1)
+    when '6' then menu.send(:start_game, :train_2ai)
     end
 
   when :loading
