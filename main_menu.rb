@@ -2,7 +2,7 @@ require 'ruby2d'
 require 'socket'
 require_relative 'pong'
 
-set title: "Pong", width: 640, height: 480
+set title: "Pong", width: 640, height: 480, icon: "icons/pong_icon.png"
 
 AI_READY_PORT = 54321
 
